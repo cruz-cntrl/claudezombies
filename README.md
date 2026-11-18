@@ -23,9 +23,14 @@ Useful URL flags: `?debug=1` (FPS/draw-call readout, outlines the reserved Netli
 Tests and checks (need `npx playwright install webkit` once, and `npm run preview` running):
 
 ```bash
-npm run shots                          # WebKit 852×393 @3x screenshots → shots/, console errors, reserved-zone overlap check
-node scripts/functional.mjs            # buys/doors/power/perks/crate/Rewirer/power-ups/hounds/brutes smoke test
-node scripts/eetest.mjs                # both easter-egg quests + bosses
+npm run test:shots         # WebKit 852×393 @3x screenshots → shots/, console errors, reserved-zone overlap check
+npm run test:gameplay      # doors / power / perks / crate / Rewirer / power-ups / hounds / Brutes smoke test
+npm run test:easter-eggs   # both main quests + bosses + rewards
+npm run test:robustness    # WebGL context loss, backgrounding, portrait rotation, input spam, retry leak check
+npm run test:bot           # faster-than-real-time bot plays from the start room; reports round reached, accuracy, stuck zombies
+npm run check:audio        # renders every sound and reports spectrum, loudness and "phone speaker" loudness
+npm run check:cpu          # JS cost per frame at round 30 with a full horde
+npm run check:viewmodels   # every gun at hip / ADS / mid-reload → shots/vm_*.png
 ```
 
 ## Deploy to Netlify

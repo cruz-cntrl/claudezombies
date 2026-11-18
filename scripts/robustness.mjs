@@ -24,13 +24,8 @@ const lost = await page.evaluate(async () => {
 });
 report.push('context: ' + lost);
 await page.screenshot({ path: 'shots/robust_context.png' });
-const px = await page.evaluate(() => {
-  const c = document.createElement('canvas'); c.width = 32; c.height = 16;
-  const g = c.getContext('2d'); g.drawImage(document.getElementById('game'), 0, 0, 32, 16);
-  const d = g.getImageData(0, 0, 32, 16).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
-  return Math.round(s / (32 * 16));
-});
-report.push('canvas brightness after restore: ' + px);
+// (WebGL canvases can't be read back without preserveDrawingBuffer: inspect shots/robust_context.png instead)
+
 // 2. visibility change
 const vis = await page.evaluate(async () => {
   Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });

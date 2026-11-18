@@ -7,7 +7,15 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host --port 4173",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "test:shots": "node scripts/shots.mjs",
+    "test:gameplay": "node scripts/functional.mjs",
+    "test:easter-eggs": "node scripts/eetest.mjs",
+    "test:robustness": "node scripts/robustness.mjs",
+    "test:bot": "node scripts/botplay.mjs ravenmoor normal 30 0.7",
+    "check:audio": "node scripts/audiocheck.mjs",
+    "check:cpu": "node scripts/cpuprofile.mjs",
+    "check:viewmodels": "node scripts/vmgallery.mjs"
   },
   "dependencies": {
     "@fontsource/black-ops-one": "^5.3.0",

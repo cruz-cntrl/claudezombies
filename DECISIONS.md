@@ -50,3 +50,20 @@ Choices made where the brief was ambiguous, with the reasoning.
     every tier, so they keep working).
 22. **Menus reserve the bottom strip** of the screen (reserved-zone height) on every screen, so no menu button,
     slider or scrollable row can ever sit in the Netlify zone.
+23. **Audio is mixed for phone speakers, verified by measurement.** iPhone speakers barely reproduce < ~300 Hz.
+    `npm run check:audio` showed the first-pass gunshots had 95–99 % of their energy below 200 Hz. Guns and impacts
+    now carry a strong 300 Hz–2.5 kHz "bark", the sub thump is passed through soft clipping so its harmonics are
+    audible, and touch devices get a subtle psychoacoustic bass path on the master bus. Headphones still get the sub.
+24. **Automatic reload on an empty magazine** (found by the bot playtest: it is easy to be left with an empty gun
+    on a touchscreen). Manual reload still works at any time.
+25. **Going down while drinking a tonic loses that tonic** (and the points), as the genre traditionally does.
+26. **Queued zombies re-route.** If a window is occupied, waiting zombies move to another free unlocked window after
+    a few seconds instead of standing in line until the stuck-timer teleports them.
+27. **Shader warm-up at session start** compiles every material (muzzle flash, decals, particles, upgraded camo) so
+    the first shot doesn't hitch (measured 84 ms → 2 ms).
+28. **Viewmodel image-based lighting.** The first-person scene has a small generated room environment (intensity
+    driven by the local light probe) so steel reads as steel instead of black; world materials keep low metalness
+    because the world is lit only by baked light.
+29. **Bot balance baseline:** a scripted player that never leaves the start room and only buys the two local
+    wall guns reaches round 5–7 on Normal depending on aim skill (dying mostly to running out of ammo). This matches
+    the genre's "camping is a trap" expectations, so the round formulas from the brief were kept unchanged.
