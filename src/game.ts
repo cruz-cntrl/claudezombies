@@ -24,7 +24,9 @@ import { MapObjects } from './systems/mapObjects';
 import { AimAssist } from './input/aimAssist';
 import { createGunModel } from './weapons/weaponModels';
 import { disposeTree } from './core/dispose';
+import { LIGHTING } from './config/lighting';
 import { AmbientFx } from './systems/ambientFx';
+import { Pickups } from './systems/pickups';
 import { EasterEggs } from './systems/easterEggs';
 import type { Boss } from './entities/bosses/boss';
 
@@ -49,6 +51,7 @@ export class Game {
   readonly objects: MapObjects;
   readonly aim: AimAssist;
   readonly ambient: AmbientFx;
+  readonly pickups: Pickups;
   over = false;
   onGameOver: (() => void) | null = null;
   onReadNote: ((id: string, digit: string | null) => void) | null = null;
@@ -90,7 +93,7 @@ export class Game {
     }
     this.player.spawn(g.start.i + 0.5, g.start.j + 0.5, bestYaw);
     this.player.selfRevives = difficulty.selfRevives;
-    this.playerLamp = new THREE.PointLight(0xffd8a8, 0.35, 6, 2);
+    this.playerLamp = new THREE.PointLight(0xffd8a8, LIGHTING.playerLamp.intensity, LIGHTING.playerLamp.distance, 2);
     r.scene.add(this.playerLamp);
 
     this.fx = new FX(r.preset.decals, r.preset.casings);
@@ -115,6 +118,7 @@ export class Game {
       onKilled: (z) => {
         this.rounds.lastKill.x = z.x; this.rounds.lastKill.z = z.z;
         if (z.type !== 'brute' && !z.boss) this.powerups.onKill(z.x, z.z);
+        if (!z.boss) this.pickups.onKill(z);
       },
       fx: this.fx,
       difficultySpeed: difficulty.zombieSpeed,
@@ -124,6 +128,8 @@ export class Game {
     this.zombies.setupChipLights(r.scene, r.preset.chipLights);
     r.scene.add(this.zombies.group);
     this.barriers = new Barriers(world, this.fx);
+    this.pickups = new Pickups(this);
+    r.scene.add(this.pickups.mesh);
     r.scene.add(this.barriers.mesh);
     this.rounds = new Rounds(this);
     this.hud = new Hud(this);
@@ -296,6 +302,7 @@ export class Game {
     this.zombies.pose(dt);
     if (!this.over) this.rounds.update(dt);
     this.powerups.update(dt);
+    this.pickups.update(dt);
     this.barriers.update(dt);
     this.objects.update(dt);
     this.ee?.update(dt);
@@ -398,11 +405,11 @@ export class Game {
     this.ee?.dispose();
     this.zombies.stopAudio();
     audio.stop(this.ambVoice, 0.5);
-    this.r.scene.remove(this.world.group, this.playerLamp, this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group);
+    this.r.scene.remove(this.world.group, this.playerLamp, this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group, this.pickups.mesh);
     this.weapons.vm.dispose(this.r.vmScene);
     this.fx.flashTex.dispose();
     this.powerups.dispose();
-    for (const grp of [this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group]) disposeTree(grp);
+    for (const grp of [this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group, this.pickups.mesh]) disposeTree(grp);
     for (const l of this.zombies.chipLights) this.r.scene.remove(l);
     this.world.setupLightPool(this.r.scene, 0);
     this.world.dispose();

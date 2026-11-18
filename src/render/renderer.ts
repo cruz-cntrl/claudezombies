@@ -6,6 +6,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { QUALITY, type QualityPreset } from './quality';
+import { LIGHTING } from '../config/lighting';
 import type { Quality } from '../core/save';
 
 const CompositeShader = {
@@ -85,7 +86,7 @@ export class Renderer {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = LIGHTING.exposure;
     this.renderer.shadowMap.enabled = false;
     this.camera = new THREE.PerspectiveCamera(this.baseFov, 2, 0.05, 120);
     this.vmCamera = new THREE.PerspectiveCamera(58, 2, 0.01, 10);

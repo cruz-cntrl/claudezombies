@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { RigMeshes, Poser, HUMAN_PARTS, HOUND_PARTS, humanGeometry, houndGeometry, createMaterials, type HumanPart, type HoundPart } from './zombieRig';
+import { RigMeshes, Poser, HUMAN_PARTS, HOUND_PARTS, PACKED_PARTS, humanGeometry, houndGeometry, createMaterials, type HumanPart, type HoundPart } from './zombieRig';
+import { pickOutfit, type Accessory } from './outfits';
 import { ZOMBIE, HOUND, BRUTE, type SpeedTier } from '../config/enemies';
 import type { World, WindowVisual } from '../world/mapBuilder';
 import { K } from '../world/grid';
@@ -10,7 +11,8 @@ export type ZType = 'zombie' | 'hound' | 'brute';
 export type ZState = 'inactive' | 'emerge' | 'outside' | 'window' | 'climb' | 'chase' | 'attack' | 'stagger' | 'knockdown' | 'dying';
 export type Part = 'chip' | 'head' | 'body' | 'limb' | 'cage';
 
-export interface ZHit { t: number; z: Zombie; part: Part; x: number; y: number; z_: number }
+/** sub: which limb was hit (1 arm L, 2 arm R, 3 leg L, 4 leg R; 0 body / head) */
+export interface ZHit { t: number; z: Zombie; part: Part; sub: number; x: number; y: number; z_: number }
 
 export class Zombie {
   idx: number;
@@ -31,6 +33,19 @@ export class Zombie {
   limp = 0;
   phase = 0;
   shoulder = 0;   // asymmetric shoulder height
+  outfit = 'patient';
+  acc = new Map<Accessory, THREE.Color>();
+  bulk = 1;
+  headScale = 1;
+  /** hit-reaction springs: 0 head pitch, 1 head yaw, 2 torso pitch, 3 torso twist, 4 arm L, 5 arm R, 6 leg L, 7 leg R */
+  readonly spring = new Float32Array(8);
+  readonly springV = new Float32Array(8);
+  fallSign = -1;
+  deathTwist = 0;
+  deathKnee = 0;
+  headHold = false;
+  lostArm = 0;
+  hatPop: { x: number; y: number; z: number; vx: number; vy: number; vz: number; t: number; part: Accessory } | null = null;
   chipOff = 0;    // chip placement variation
   armLen = 1;
   window: WindowVisual | null = null;
@@ -110,6 +125,7 @@ export class ZombieManager {
   private time = 0;
   freezeAll = false;
   private cageCount = 0;
+  private packed: Record<string, number> = {};
   /** 0 = map chip colour, 1 = red (special rounds / bosses) */
   chipTint = 0;
   private glowCol = new THREE.Color();
@@ -167,10 +183,23 @@ export class ZombieManager {
     z.tier = tier;
     z.scale = type === 'brute' ? BRUTE.scale : type === 'hound' ? 1 : rand(0.92, 1.08);
     z.skin.setHex(pick(SKINS)).offsetHSL(0, 0, rand(-0.05, 0.05));
-    z.cloth.setHex(pick(CLOTHES));
-    z.trousers.setHex(pick(TROUSERS));
+    z.acc.clear();
+    const o = pickOutfit(this.world.def.id);
+    z.outfit = o.id;
+    z.cloth.setHex(pick(o.cloth)).offsetHSL(0, rand(-0.04, 0.02), rand(-0.05, 0.03));
+    z.trousers.setHex(o.bareLegs ? z.skin.getHex() : pick(o.trousers));
+    if (o.bareLegs) z.trousers.copy(z.skin);
+    for (const [k, v] of Object.entries(o.acc) as [Accessory, [number, number[]]][]) {
+      if (Math.random() < v[0]) z.acc.set(k, new THREE.Color(pick(v[1])).offsetHSL(0, 0, rand(-0.04, 0.04)));
+    }
+    z.bulk = rand(o.bulk[0], o.bulk[1]);
+    z.headScale = rand(0.94, 1.07);
+    z.spring.fill(0); z.springV.fill(0);
+    z.fallSign = -1; z.deathTwist = 0; z.deathKnee = 0; z.headHold = false; z.lostArm = 0; z.hatPop = null;
+    void CLOTHES; void TROUSERS;
     if (type === 'hound') { z.skin.setHex(0x8a4a40); z.cloth.setHex(0x7a3a30); }
-    if (type === 'brute') { z.skin.setHex(0x7a7a6c); z.cloth.setHex(0x3a3e30); z.trousers.setHex(0x2a2a24); }
+    if (type === 'brute') { z.skin.setHex(0x7a7a6c); z.cloth.setHex(0x3a3e30); z.trousers.setHex(0x2a2a24); z.acc.clear(); z.bulk = 1; }
+    if (type === 'hound') { z.acc.clear(); z.bulk = 1; }
     z.limp = Math.random() < 0.35 ? rand(0.3, 0.8) * (Math.random() < 0.5 ? -1 : 1) : 0;
     z.shoulder = rand(-0.06, 0.06);
     z.chipOff = rand(-1, 1);
@@ -224,6 +253,12 @@ export class ZombieManager {
 
     for (const z of this.all()) {
       z.stateT += dt;
+      // hit-reaction springs (snappy, slightly under-damped); a fatal head snap is held
+      for (let k = 0; k < 8; k++) {
+        const K = z.state === 'dying' ? (k === 0 && z.headHold ? 6 : 30) : 140, C = z.state === 'dying' ? 7 : 15;
+        z.springV[k] += (-K * z.spring[k] - C * z.springV[k]) * dt;
+        z.spring[k] += z.springV[k] * dt;
+      }
       z.hitFlash = Math.max(0, z.hitFlash - dt * 5);
       z.chipStutter = Math.max(0, z.chipStutter - dt);
       z.cooldown -= dt;
@@ -391,6 +426,12 @@ export class ZombieManager {
             if (c.y < 0.03) { c.y = 0.03; c.vy *= -0.3; c.vx *= 0.6; c.vz *= 0.6; }
             c.t += dt;
           }
+          if (z.hatPop) {
+            const c = z.hatPop;
+            c.vy -= 9.8 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
+            if (c.y < 0.06) { c.y = 0.06; c.vy *= -0.25; c.vx *= 0.5; c.vz *= 0.5; }
+            c.t += dt;
+          }
           if (z.deathT > 0.18) {
             // slide a little along death dir for ragdoll-ish momentum
             const k = Math.max(0, 1 - (z.deathT - 0.18) * 2.5);
@@ -467,8 +508,21 @@ export class ZombieManager {
 
   // -------------------------------------------------------------- damage
   /** Apply damage. Returns true if killed. */
-  damage(z: Zombie, dmg: number, part: Part, dirX: number, dirZ: number, opts: { explosive?: boolean; melee?: boolean; noStagger?: boolean } = {}): { killed: boolean; crit: boolean; cageBroke?: boolean } {
+  /** Kick the hit-reaction springs for the part that was hit (bullet push in the zombie's local frame). */
+  private react(z: Zombie, part: Part, sub: number, dirX: number, dirZ: number, strength: number) {
+    const f = dirX * Math.sin(z.yaw) + dirZ * Math.cos(z.yaw);   // + = pushed toward its facing (hit from behind)
+    const s = dirX * Math.cos(z.yaw) - dirZ * Math.sin(z.yaw);   // sideways push
+    const k = strength;
+    const v = z.springV;
+    if (part === 'head' || part === 'chip' || part === 'cage') { v[0] += f * 11 * k; v[1] += s * 7 * k; v[2] += f * 2 * k; }
+    else if (part === 'body') { v[2] += f * 6 * k; v[3] += s * 6 * k; v[0] += f * 3 * k; }
+    else if (sub === 1 || sub === 2) { v[sub === 1 ? 4 : 5] += -f * 14 * k - 2 * k; v[3] += (sub === 1 ? -1 : 1) * 3 * k; }
+    else if (sub === 3 || sub === 4) { v[sub === 3 ? 6 : 7] += -f * 9 * k + 2 * k; v[2] += 2.5 * k; }
+  }
+
+  damage(z: Zombie, dmg: number, part: Part, dirX: number, dirZ: number, opts: { explosive?: boolean; melee?: boolean; noStagger?: boolean; sub?: number } = {}): { killed: boolean; crit: boolean; cageBroke?: boolean } {
     if (!z.alive) return { killed: false, crit: false };
+    this.react(z, part, opts.sub ?? 0, dirX, dirZ, Math.min(1.4, 0.35 + dmg / Math.max(1, z.maxHp)) * (opts.explosive ? 1.5 : 1));
     let crit = false;
     if (z.type === 'brute' && z.cageHp > 0 && (part === 'chip' || part === 'cage' || part === 'head')) {
       z.cageHp -= dmg;
@@ -487,7 +541,7 @@ export class ZombieManager {
     z.hp -= dmg;
     z.hitFlash = 1;
     if (z.hp <= 0) {
-      this.kill(z, part, dirX, dirZ, opts.explosive);
+      this.kill(z, part, dirX, dirZ, opts.explosive, opts.sub ?? 0);
       return { killed: true, crit };
     }
     if (!opts.noStagger && z.type !== 'brute') {
@@ -499,8 +553,44 @@ export class ZombieManager {
     return { killed: false, crit };
   }
 
-  kill(z: Zombie, part: Part, dirX: number, dirZ: number, explosive = false) {
+  kill(z: Zombie, part: Part, dirX: number, dirZ: number, explosive = false, sub = 0) {
     if (!z.alive) return;
+    // how the body goes down depends on what killed it
+    const f = dirX * Math.sin(z.yaw) + dirZ * Math.cos(z.yaw);
+    const sd = dirX * Math.cos(z.yaw) - dirZ * Math.sin(z.yaw);
+    z.fallSign = f >= 0 ? 1 : -1;
+    z.deathTwist = sd * 0.5 + rand(-0.15, 0.15);
+    z.deathKnee = 0;
+    z.headHold = false;
+    if (part === 'head' || part === 'chip') {
+      // the head snaps back with the shot and stays there as the body follows
+      z.springV[0] += (f >= 0 ? 1 : -1) * 22;
+      z.springV[1] += sd * 8;
+      z.headHold = true;
+      const hat = z.acc.has('helmet') ? 'helmet' : z.acc.has('cap') ? 'cap' : null;
+      if (hat && z.type === 'zombie') {
+        z.hatPop = { x: z.head.x, y: z.head.y + 0.1, z: z.head.z, vx: dirX * 3 + rand(-0.5, 0.5), vy: 2.5 + Math.random() * 1.5, vz: dirZ * 3 + rand(-0.5, 0.5), t: 0, part: hat };
+        if (hat === 'helmet') audio.play('imp_metal', { pos: { x: z.head.x, y: z.head.y, z: z.head.z }, vol: 0.7, priority: 4 });
+      }
+    } else if (sub === 3 || sub === 4) {
+      // leg shot: the knee buckles and it pitches forward onto its face
+      z.fallSign = 1;
+      z.deathKnee = 1;
+      z.deathTwist += sub === 3 ? -0.35 : 0.35;
+      z.springV[sub === 3 ? 6 : 7] += 8;
+    } else if (sub === 1 || sub === 2) {
+      // arm shot: spun round by the impact
+      z.deathTwist += (sub === 1 ? -1 : 1) * 0.6;
+      z.springV[sub === 1 ? 4 : 5] += 16;
+    } else {
+      z.springV[2] += f * 12;
+      z.springV[3] += sd * 10;
+    }
+    if (explosive && z.type === 'zombie' && Math.random() < 0.6) {
+      z.lostArm = Math.random() < 0.5 ? -1 : 1;
+      this.host.fx.blood(z.x, 1.3, z.z, dirX, 0.5, dirZ, 18);
+      audio.play('imp_gib', { pos: { x: z.x, y: 1.2, z: z.z }, vol: 0.8, priority: 5 });
+    }
     if (z.window && this.windowOccupant.get(z.window) === z) this.windowOccupant.delete(z.window);
     z.state = 'dying';
     z.stateT = 0;
@@ -527,7 +617,7 @@ export class ZombieManager {
   }
 
   // -------------------------------------------------------------- raycast
-  private hitPool: ZHit[] = Array.from({ length: 64 }, () => ({ t: 0, z: null as unknown as Zombie, part: 'body' as Part, x: 0, y: 0, z_: 0 }));
+  private hitPool: ZHit[] = Array.from({ length: 64 }, () => ({ t: 0, z: null as unknown as Zombie, part: 'body' as Part, sub: 0, x: 0, y: 0, z_: 0 }));
   /** Ray vs every live creature's hit shapes. Returns hits sorted by distance (one per creature). */
   raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxT: number, out: ZHit[]): ZHit[] {
     out.length = 0;
@@ -541,24 +631,24 @@ export class ZombieManager {
       if (proj < -1) continue;
       const perp = Math.abs(cx * dz - cz * dx) / hlen;
       if (perp > 1.2 * z.scale) continue;
-      let best = maxT, part: Part = 'body';
+      let best = maxT, part: Part = 'body', sub = 0;
       const chk = (cxw: number, cyw: number, czw: number, rad: number, p: Part) => {
         const t = raySphere(ox, oy, oz, dx, dy, dz, cxw, cyw, czw, rad);
-        if (t >= 0 && t < best) { best = t; part = p; }
+        if (t >= 0 && t < best) { best = t; part = p; sub = 0; }
       };
       if (!z.chipDead) chk(z.chip.x, z.chip.y, z.chip.z, (z.type === 'brute' && z.cageHp > 0 ? 0.2 : 0.075) * z.scale, z.type === 'brute' && z.cageHp > 0 ? 'cage' : 'chip');
       chk(z.head.x, z.head.y, z.head.z, (z.type === 'hound' ? 0.14 : 0.13) * z.scale, 'head');
       const L = z.limbs;
-      const segs = z.type === 'hound' ? 5 : 7;
+      const segs = 5; // body + 4 limbs (both rigs fill limbs[0..9])
       for (let s = 0; s < segs; s++) {
         const a = L[s * 2], b = L[s * 2 + 1];
         const rad = (s === 0 ? (z.type === 'hound' ? 0.17 : 0.19) : z.type === 'hound' ? 0.06 : 0.075) * z.scale;
         const t = rayCapsule(ox, oy, oz, dx, dy, dz, a, b, rad);
-        if (t >= 0 && t < best) { best = t; part = s === 0 ? 'body' : 'limb'; }
+        if (t >= 0 && t < best) { best = t; part = s === 0 ? 'body' : 'limb'; sub = s; }
       }
       if (best < maxT && used < this.hitPool.length) {
         const h = this.hitPool[used++];
-        h.t = best; h.z = z; h.part = part;
+        h.t = best; h.z = z; h.part = part; h.sub = sub;
         h.x = ox + dx * best; h.y = oy + dy * best; h.z_ = oz + dz * best;
         out.push(h);
       }
@@ -573,6 +663,7 @@ export class ZombieManager {
     const glowCol = this.glowCol.copy(this.host.chipColor).lerp(ZombieManager.RED, this.chipTint);
     let hi = 0, di = 0;
     this.cageCount = 0;
+    for (const k of PACKED_PARTS) this.packed[k] = 0;
     const lights: Zombie[] = [];
     for (const z of this.humans) {
       if (!z.active) continue;
@@ -585,7 +676,7 @@ export class ZombieManager {
       if (!z.chipDead) lights.push(z);
     }
     for (const p of HUMAN_PARTS) H.meshes[p].count = hi;
-    H.meshes.cage.count = this.cageCount;
+    for (const k of PACKED_PARTS) H.meshes[k].count = this.packed[k];
     for (const p of HOUND_PARTS) D.meshes[p].count = di;
     for (const p of HUMAN_PARTS) { H.meshes[p].instanceMatrix.needsUpdate = true; if (H.meshes[p].instanceColor) H.meshes[p].instanceColor!.needsUpdate = true; }
     for (const p of HOUND_PARTS) { D.meshes[p].instanceMatrix.needsUpdate = true; if (D.meshes[p].instanceColor) D.meshes[p].instanceColor!.needsUpdate = true; }
@@ -681,25 +772,33 @@ export class ZombieManager {
       const dt2 = Math.max(0, z.deathT - 0.15);
       const fall = clamp(dt2 * dt2 * 3.2, 0, 1);
       const sink = clamp((z.deathT - 5.2) / 1.2, 0, 1);
-      rootPitch = fall * (z.deathDirX * Math.sin(z.yaw) + z.deathDirZ * Math.cos(z.yaw) >= 0 ? 1.5 : -1.5);
-      hipY = 0.93 - fall * 0.78 - sink * 0.35;
-      kneeL = 0.4 + fall * 0.5; kneeR = 0.3 + fall * 0.9;
+      // knee-buckle deaths drop straight down first, then topple
+      const buckle = z.deathKnee * clamp(z.deathT * 4, 0, 1);
+      rootPitch = fall * z.fallSign * 1.5;
+      hipY = 0.93 - fall * 0.78 - sink * 0.35 - buckle * 0.3 * (1 - fall);
+      kneeL = 0.4 + fall * 0.5 + buckle * 1.2; kneeR = 0.3 + fall * 0.9 + buckle * 0.8;
       const flop = Math.sin(z.deathT * 18) * Math.exp(-z.deathT * 4) * 0.4;
       armLx = -0.6 + flop - fall * 1.6; armRx = -0.2 - flop - fall * 1.1; armLz = 0.8 * fall; armRz = -1.0 * fall;
       hunch = 0.1 + fall * 0.4; headX = fall * 0.5 + flop;
     }
+    // hit reactions
+    const sp = z.spring;
+    headX += sp[0]; hunch += sp[2];
+    armLx += sp[4]; armRx += sp[5];
+    const legKickL = sp[6], legKickR = sp[7];
+    const twist = sp[3] + (z.state === 'dying' ? clamp(z.deathT * 2, 0, 1) * z.deathTwist : 0);
     // hierarchy
     const root = _m[0], pelvis = _m[1], torso = _m[2], head = _m[3], tmp = _m[4], ua = _m[5], la = _m[6], ul = _m[7];
-    P.local(root, IDENT, z.x, z.y, z.z, rootPitch, z.yaw, 0, s);
-    P.local(pelvis, root, 0, hipY, 0, 0, 0, bodyRoll * 0.5);
-    const torsoScale = z.type === 'brute' ? 1.25 : 1;
+    P.local(root, IDENT, z.x, z.y, z.z, rootPitch, z.yaw + (z.state === 'dying' ? twist * 0.6 : 0), z.state === 'dying' ? twist * 0.5 * fallK(z) : 0, s);
+    P.local(pelvis, root, 0, hipY, 0, 0, 0, bodyRoll * 0.5, z.bulk, 1, 1);
+    const torsoScale = (z.type === 'brute' ? 1.25 : 1) * z.bulk;
     // pelvis colour = trousers/clothing
     _col.copy(z.cloth).multiplyScalar(0.9);
     this.setInst(H, 'pelvis', i, pelvis, _col);
-    P.local(torso, pelvis, 0, 0.06, 0, hunch, Math.sin(z.phase * 0.5) * 0.08, bodyRoll, torsoScale, 1, torsoScale);
+    P.local(torso, pelvis, 0, 0.06, 0, hunch, Math.sin(z.phase * 0.5) * 0.08 + twist, bodyRoll, torsoScale / z.bulk, 1, torsoScale / Math.sqrt(z.bulk));
     _col.copy(z.cloth);
     this.setInst(H, 'torso', i, torso, _col);
-    P.local(head, torso, 0, 0.62, 0.02, headX - hunch * 0.6, headZ * 0.4, headZ + z.shoulder * 2, 1 / torsoScale);
+    P.local(head, torso, 0, 0.62, 0.02, headX - hunch * 0.6, headZ * 0.4 + sp[1], headZ + z.shoulder * 2, z.headScale / torsoScale, z.headScale, z.headScale / (torsoScale / Math.sqrt(z.bulk)));
     _col.copy(z.skin);
     this.setInst(H, 'head', i, head, _col);
     // chip + glow
@@ -721,7 +820,22 @@ export class ZombieManager {
     H.meshes.glow.setColorAt(i, _col);
     // cage
     // cages are packed into their own slots so only brutes pay for the geometry
-    if (z.type === 'brute' && z.cageHp > 0) { P.local(tmp, head, 0, 0.02, 0, 0, 0, 0, 1.15); this.setInst(H, 'cage', this.cageCount++, tmp, null); }
+    if (z.type === 'brute' && z.cageHp > 0) { P.local(tmp, head, 0, 0.02, 0, 0, 0, 0, 1.15); this.setInst(H, 'cage', this.packed.cage++, tmp, null); }
+    // outfit accessories
+    for (const [acc, col] of z.acc) {
+      if (z.hatPop && z.hatPop.part === acc) {
+        const c = z.hatPop;
+        P.local(tmp, IDENT, c.x, c.y, c.z, c.t * 6, c.t * 4, c.t * 3, s);
+      } else switch (acc) {
+        case 'helmet': P.local(tmp, head, -0.01, 0.16, -0.05, -0.55, 0.2, 0.18); break;
+        case 'cap': P.local(tmp, head, -0.035, 0.2, 0.01, -0.12, 0, 0.32, 0.95); break;
+        case 'bandage': P.local(tmp, head, 0, 0, 0, 0, 0, 0); break;
+        case 'coat': P.local(tmp, pelvis, 0, 0.1, 0, 0, 0, 0, 1.05); break;
+        case 'apron': P.local(tmp, torso, 0, 0.3, 0.13, -0.06, 0, 0); break;
+        case 'straps': P.local(tmp, torso, 0, 0, 0, 0, 0, 0); break;
+      }
+      this.setInst(H, acc, this.packed[acc]++, tmp, col);
+    }
     z.head.setFromMatrixPosition(head).add(_v.set(0, 0.12 * s, 0));
     z.neck.setFromMatrixPosition(head);
     z.pelvis.setFromMatrixPosition(pelvis);
@@ -734,7 +848,8 @@ export class ZombieManager {
       P.local(ua, torso, side * 0.21, 0.47 + side * z.shoulder, 0, ax + swayA, 0, az + side * 0.05, 1, z.armLen, 1);
       _col.copy(z.type === 'brute' ? z.skin : z.cloth).multiplyScalar(0.95);
       this.setInst(H, side < 0 ? 'uArmL' : 'uArmR', i, ua, _col);
-      P.local(la, ua, 0, -0.36, 0, el, 0, 0, 1, 1, 1);
+      const lost = z.lostArm === side;
+      P.local(la, ua, 0, -0.36, 0, el, 0, 0, lost ? 0.001 : 1, lost ? 0.001 : 1, lost ? 0.001 : 1);
       _col.copy(z.skin);
       this.setInst(H, side < 0 ? 'lArmL' : 'lArmR', i, la, _col);
       z.limbs[li++].setFromMatrixPosition(ua);
@@ -744,7 +859,7 @@ export class ZombieManager {
     // legs
     for (const side of [-1, 1]) {
       const lg = side < 0 ? legL : legR, kn = side < 0 ? kneeL : kneeR;
-      P.local(ul, pelvis, side * 0.1, -0.06, 0, -lg, 0, side * 0.04);
+      P.local(ul, pelvis, side * 0.1 / z.bulk, -0.06, 0, -lg + (side < 0 ? legKickL : legKickR), 0, side * 0.04, 1 / z.bulk, 1, 1);
       _col.copy(z.trousers);
       this.setInst(H, side < 0 ? 'uLegL' : 'uLegR', i, ul, _col);
       P.local(la, ul, 0, -0.43, 0, kn, 0, 0);
@@ -773,7 +888,7 @@ export class ZombieManager {
     P.local(body, root, 0, bodyY, 0, pitch + Math.sin(ph * 2) * 0.05 * gal, 0, roll);
     _col.copy(z.skin);
     this.setInst(D, 'hBody', i, body, _col);
-    P.local(head, body, 0, 0.14, 0.45, -0.15 + Math.sin(ph * 2 + 1) * 0.1 * gal + (z.state === 'attack' ? -0.3 : 0), Math.sin(this.time * 3 + i) * 0.1, 0);
+    P.local(head, body, 0, 0.14, 0.45, -0.15 + Math.sin(ph * 2 + 1) * 0.1 * gal + (z.state === 'attack' ? -0.3 : 0) + z.spring[0], Math.sin(this.time * 3 + i) * 0.1 + z.spring[1], 0);
     this.setInst(D, 'hHead', i, head, _col);
     P.local(tmp, head, 0.0, 0.1, -0.02, -0.2, 0, 0.2, 0.9);
     this.setInst(D, 'chip', i, tmp, null);
@@ -818,6 +933,8 @@ export class ZombieManager {
 
 
 const IDENT = new THREE.Matrix4();
+/** how far through its death fall a creature is (0..1) */
+function fallK(z: Zombie) { return clamp(Math.max(0, z.deathT - 0.15) ** 2 * 3.2, 0, 1); }
 
 function radius(z: Zombie) { return z.type === 'brute' ? BRUTE.radius : z.type === 'hound' ? HOUND.radius : ZOMBIE.radius; }
 function gaitRate(z: Zombie, sp: number) { return z.type === 'hound' ? 2.2 + sp * 1.4 : 1.5 + sp * 2.1; }

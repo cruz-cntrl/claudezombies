@@ -88,6 +88,11 @@ export class Hud {
       bus.on('bossEnd', () => this.boss.classList.remove('on')),
       bus.on('eeProgress', (e) => { this.ee.textContent = e.text; }),
       bus.on('hudJam', (e) => { this.staticT = Math.max(this.staticT, e.seconds); }),
+      bus.on('pickup', (e) => {
+        const el = h('div', { class: 'ammo-pop ' + e.size }, e.text);
+        this.ammo.appendChild(el);
+        setTimeout(() => el.remove(), 1200);
+      }),
     );
   }
 

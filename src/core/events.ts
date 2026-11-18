@@ -28,6 +28,7 @@ export interface GameEvents {
   eeProgress: { text: string };
   hudJam: { seconds: number };
   shake: { amount: number };
+  pickup: { text: string; size: string };
 }
 
 type Handler<T> = (payload: T) => void;

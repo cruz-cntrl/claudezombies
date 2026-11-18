@@ -53,10 +53,12 @@ All numbers live in `src/config/` — no logic changes needed:
 | `weapons.ts` | Per weapon: damage, head multiplier, RPM, mag/reserve, reload times, spread (hip/ADS), recoil, falloff, penetration, move speed, ADS zoom, wall-buy price, ammo price, crate weight, and the `upgraded` overrides from the Rewirer. `WONDER_CHANCE` = Signal Disruptor crate odds. |
 | `rounds.ts` | Zombie count / health formulas, spawn delay, speed mix by round, hound-round cadence, Brute start round, max alive. |
 | `difficulty.ts` | Easy / Normal / Hardened multipliers (HP, speed, count, damage to player, drop rate, self-revives). |
-| `economy.ts` | Points per hit / kill / headshot / chip kill / melee kill / board, crate & Rewirer cost, hold-to-buy time. |
+| `economy.ts` | Points per hit / kill / headshot / chip kill / melee kill / board, crate & Rewirer cost, rewired-ammo cost, ammo-drop chance and tin sizes, hold-to-buy time. |
+| `lighting.ts` | Global brightness: exposure, baked-light strength, ambient fill, player lamp, light-probe strength. |
 | `perks.ts` | Halcyon Tonic prices, colours, effects (`PERK_TUNING`), max perks. |
 | `enemies.ts` | Zombie speeds, attack range/wind-up/damage, chip crit multiplier, hound & Brute stats, boss HP, power-up drop chance & timers. |
 | `lore.ts` | Lore note text, radio frequencies. |
+| `../entities/outfits.ts` | Zombie looks: outfits, accessory chances and colours, body builds, how common each is per map. |
 
 Map layouts are authored in `src/world/maps/*.ts` with a small `LayoutBuilder` (rooms, doors, windows and named
 markers for wall-buys, perks, crates, the Rewirer, power, easter-egg anchors).

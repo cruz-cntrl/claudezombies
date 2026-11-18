@@ -67,3 +67,15 @@ Choices made where the brief was ambiguous, with the reasoning.
 29. **Bot balance baseline:** a scripted player that never leaves the start room and only buys the two local
     wall guns reaches round 5–7 on Normal depending on aim skill (dying mostly to running out of ammo). This matches
     the genre's "camping is a trap" expectations, so the round formulas from the brief were kept unchanged.
+30. **Brighter baseline.** Global lighting moved into `config/lighting.ts` (exposure 1.45, baked light ×2.9,
+    ambient ×1.6 plus a small lift, a stronger player lamp). The game stays moody but every area is readable.
+31. **Zombie looks** come from six outfits (patient, soldier, doctor, nurse, worker, officer) with accessories
+    (helmet, coat/dress, cap, apron, bandage, webbing) and thin-to-heavy builds, weighted per map. Accessories are
+    packed instanced meshes, so they only cost draw time when someone is wearing them.
+32. **Hit reactions** use per-part springs driven by the bullet's direction in the zombie's own frame. Fatal head
+    shots snap the head back (and knock off hats), leg kills buckle the knee and pitch forward, arm kills spin the
+    body, explosions can take an arm (within the brief's "limbs/chip popping off" limit).
+33. **Ammo tins:** ~9 % of kills (× difficulty drop rate) drop a small / medium / large tin refilling 12 / 25 / 50 %
+    of every carried weapon's max reserve; Brutes always drop a large one. Tins are skipped (left on the floor) when
+    every gun is full.
+34. **Cheaper upgrades:** the Rewirer costs 3000 (was 5000) and wall ammo for a rewired gun costs 1500 (was 2500).

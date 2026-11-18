@@ -9,6 +9,7 @@ import { FlowField } from './flowField';
 import { mulberry32, type RNG } from '../core/math';
 import { themeProp, DOUBLE_PROPS, LOW_PROPS, lightCage, bookshelf, lampPost } from './props';
 import { createSky } from './sky';
+import { LIGHTING } from '../config/lighting';
 
 export interface PracticalLight {
   x: number; y: number; z: number;
@@ -380,10 +381,10 @@ export class World {
     const g = this.grid;
     const i = Math.floor(x), j = Math.floor(z);
     const k = g.kindAt(i, j);
-    if (k === K.OUTSIDE || k === K.VOID) { out.setHex(this.def.outsideAmbient); return; }
-    const zd = this.zoneDef(i, j);
-    if (zd) { out.setHex(zd.ambient); return; }
-    out.setHex(this.def.outsideAmbient);
+    const zd = k === K.OUTSIDE || k === K.VOID ? null : this.zoneDef(i, j);
+    out.setHex(zd ? zd.ambient : this.def.outsideAmbient);
+    out.multiplyScalar(LIGHTING.ambientScale);
+    out.r += LIGHTING.ambientLift; out.g += LIGHTING.ambientLift; out.b += LIGHTING.ambientLift * 1.05;
   }
 
   // ------------------------------------------------------------------ props

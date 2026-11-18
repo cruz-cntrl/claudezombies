@@ -125,7 +125,7 @@ export class Combat implements CombatHost {
     for (const h of hits) {
       if (pen <= 0) break;
       const fall = 1 - clamp((h.t - st.falloffStart) / Math.max(0.01, st.falloffEnd - st.falloffStart), 0, 1) * (1 - st.minDamageMult);
-      this.damageZombie(h.z, h.part, st.damage * fall * mult, w.stats.headMult, d.x, d.z, h.x, h.y, h.z_, { weapon: w });
+      this.damageZombie(h.z, h.part, st.damage * fall * mult, w.stats.headMult, d.x, d.z, h.x, h.y, h.z_, { weapon: w, sub: h.sub });
       if (st.splashRadius) this.explode(h.x, h.y, h.z_, st.splashRadius, st.splashDamage ?? 100, false, true);
       pen--; mult *= 0.75;
     }
@@ -144,14 +144,14 @@ export class Combat implements CombatHost {
 
   /** Central zombie damage: part multipliers, overload, points, FX, sounds, HUD hit markers. */
   damageZombie(z: Zombie, part: Part, base: number, headMult: number, dx: number, dz: number, hx: number, hy: number, hz: number,
-    opts: { weapon?: WeaponInstance; melee?: boolean; explosive?: boolean; arc?: boolean; noPoints?: boolean } = {}) {
+    opts: { weapon?: WeaponInstance; melee?: boolean; explosive?: boolean; arc?: boolean; noPoints?: boolean; sub?: number } = {}) {
     if (!z.alive) return { killed: false, crit: false };
     let dmg = base;
     if (part === 'chip') dmg *= headMult * ZOMBIE.chipCritMult;
     else if (part === 'head') dmg *= headMult;
     else if (part === 'limb') dmg *= 0.8;
     if (this.overload() && !z.boss) dmg = z.type === 'brute' ? dmg * 8 : 1e9;
-    const res = this.zombies.damage(z, dmg, part, dx, dz, { explosive: opts.explosive, melee: opts.melee });
+    const res = this.zombies.damage(z, dmg, part, dx, dz, { explosive: opts.explosive, melee: opts.melee, sub: opts.sub });
     const fx = this.fx;
     // FX + sound
     if (part === 'chip' || part === 'cage') {

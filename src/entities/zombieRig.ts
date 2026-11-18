@@ -9,7 +9,10 @@ import { getSurface } from '../render/proceduralTextures';
  * (instanceColor) gives skin/clothing variety and per-instance `instBake` gives local light.
  */
 export type HumanPart =
-  | 'pelvis' | 'torso' | 'head' | 'uArmL' | 'uArmR' | 'lArmL' | 'lArmR' | 'uLegL' | 'uLegR' | 'lLegL' | 'lLegR' | 'chip' | 'glow' | 'cage';
+  | 'pelvis' | 'torso' | 'head' | 'uArmL' | 'uArmR' | 'lArmL' | 'lArmR' | 'uLegL' | 'uLegR' | 'lLegL' | 'lLegR' | 'chip' | 'glow' | 'cage'
+  | 'helmet' | 'coat' | 'cap' | 'apron' | 'bandage' | 'straps';
+/** Parts packed into their own instance slots (only creatures that wear them pay for them). */
+export const PACKED_PARTS = ['cage', 'helmet', 'coat', 'cap', 'apron', 'bandage', 'straps'] as const;
 export type HoundPart = 'hBody' | 'hHead' | 'hLegFL' | 'hLegFR' | 'hLegBL' | 'hLegBR' | 'hLowFL' | 'hLowFR' | 'hLowBL' | 'hLowBR' | 'hTail' | 'chip' | 'glow';
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -108,6 +111,48 @@ function humanGeometry(part: HumanPart): THREE.BufferGeometry {
       parts.push([rbox(0.12, 0.06, 0.12, 0.02), M(0, 0.3, 0), 0x8a3a20]);
       return compose(parts);
     }
+    // ---- outfit accessories (local to their parent bone; tinted per instance)
+    case 'helmet': return compose([
+      // dented steel helmet knocked back on the skull (the chip stays exposed)
+      [new THREE.SphereGeometry(0.14, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), M(0, 0, 0, 0, 0, 0, 1, 0.8, 1.05)],
+      [cyl(0.165, 0.17, 0.012, 12), M(0, 0.005, 0)],
+      [box(0.012, 0.11, 0.012), M(0.12, -0.05, 0.02, 0, 0, 0.2), 0x2a2018],
+      [box(0.05, 0.03, 0.02), M(-0.06, 0.09, 0.1, 0, 0.3, 0.2), 0x2a2a24],
+    ]);
+    case 'coat': return compose([
+      // long coat / dress skirt hanging from the waist, split at the front
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => {
+        const a = (k / 8) * Math.PI * 2 + 0.4;
+        if (k === 2) return null;
+        const len = 0.58 + ((k * 37) % 5) * 0.03;
+        return [box(0.15, len, 0.012), M(Math.sin(a) * 0.19, -len / 2 + 0.05, Math.cos(a) * 0.15, a, -0.08, 0)] as [THREE.BufferGeometry, THREE.Matrix4, number?];
+      }).filter((x): x is [THREE.BufferGeometry, THREE.Matrix4, number?] => !!x),
+      [box(0.4, 0.05, 0.26), M(0, 0.04, 0), 0x1a1a18],
+    ]);
+    case 'cap': return compose([
+      [cyl(0.1, 0.115, 0.05, 10), M(0, 0.025, 0)],
+      [cyl(0.125, 0.13, 0.015, 12), M(0, 0.055, 0)],
+      [box(0.14, 0.012, 0.07), M(0, 0.01, 0.12, 0, 0.15), 0x1a1a18],
+    ]);
+    case 'apron': return compose([
+      [box(0.3, 0.72, 0.015), M(0, -0.12, 0)],
+      [box(0.16, 0.2, 0.004), M(0.04, -0.05, 0.01, 0, 0, 0.2), 0x5a1410],
+      [box(0.1, 0.12, 0.004), M(-0.08, -0.3, 0.01, 0, 0, -0.4), 0x4a1410],
+      [box(0.012, 0.36, 0.012), M(-0.13, 0.36, -0.04, 0, -0.2, 0.2), 0x6a5a4a],
+      [box(0.012, 0.36, 0.012), M(0.13, 0.36, -0.04, 0, -0.2, -0.2), 0x6a5a4a],
+    ]);
+    case 'bandage': return compose([
+      [new THREE.TorusGeometry(0.104, 0.022, 4, 14), M(0, 0.15, 0, 0, Math.PI / 2 - 0.15, 0, 1, 1, 0.92)],
+      [new THREE.TorusGeometry(0.1, 0.018, 4, 12), M(0, 0.13, 0, 0.8, Math.PI / 2 + 0.5, 0, 1, 1, 0.9)],
+      [box(0.04, 0.03, 0.004), M(-0.06, 0.15, 0.1), 0x7a2018],
+    ]);
+    case 'straps': return compose([
+      [box(0.04, 0.6, 0.012), M(0.02, 0.28, 0.135, 0, 0, 0.5)],
+      [box(0.04, 0.6, 0.012), M(-0.02, 0.28, 0.135, 0, 0, -0.5)],
+      [box(0.36, 0.05, 0.27), M(0, 0.04, 0)],
+      [box(0.07, 0.08, 0.05), M(0.12, 0.05, 0.13), 0x4a4030],
+      [box(0.07, 0.08, 0.05), M(-0.12, 0.05, 0.13), 0x4a4030],
+    ]);
   }
 }
 
@@ -208,7 +253,7 @@ export function createMaterials() {
   return { skin, chip, glow };
 }
 
-export const HUMAN_PARTS: HumanPart[] = ['pelvis', 'torso', 'head', 'uArmL', 'uArmR', 'lArmL', 'lArmR', 'uLegL', 'uLegR', 'lLegL', 'lLegR', 'chip', 'glow', 'cage'];
+export const HUMAN_PARTS: HumanPart[] = ['pelvis', 'torso', 'head', 'uArmL', 'uArmR', 'lArmL', 'lArmR', 'uLegL', 'uLegR', 'lLegL', 'lLegR', 'chip', 'glow', 'cage', 'helmet', 'coat', 'cap', 'apron', 'bandage', 'straps'];
 export const HOUND_PARTS: HoundPart[] = ['hBody', 'hHead', 'hLegFL', 'hLegFR', 'hLegBL', 'hLegBR', 'hLowFL', 'hLowFR', 'hLowBL', 'hLowBR', 'hTail', 'chip', 'glow'];
 export { humanGeometry, houndGeometry };
 

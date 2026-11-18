@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { K, type Grid } from '../world/grid';
+import { LIGHTING } from '../config/lighting';
 
 export interface BakeLight {
   x: number; y: number; z: number;
@@ -145,6 +146,11 @@ export class LightBaker {
 
   /** Bilinear probe sample. */
   sample(x: number, z: number, out: { r: number; g: number; b: number }) {
+    this.sampleRaw(x, z, out);
+    out.r *= LIGHTING.probeScale; out.g *= LIGHTING.probeScale; out.b *= LIGHTING.probeScale;
+  }
+
+  private sampleRaw(x: number, z: number, out: { r: number; g: number; b: number }) {
     const g = this.grid;
     const fx = x - 0.5, fz = z - 0.5;
     const i0 = Math.max(0, Math.min(g.w - 1, Math.floor(fx))), j0 = Math.max(0, Math.min(g.h - 1, Math.floor(fz)));

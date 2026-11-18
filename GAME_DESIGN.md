@@ -24,7 +24,9 @@ Round-based wave survival, first person, iPhone 16 Safari landscape, Netlify-hos
 - Barriers: windows with 6 boards; zombies tear boards then climb. Rebuild by holding interact.
 - Doors/debris cost points, unlock zones (and their spawners). Power switch enables perks + Rewirer.
 - 14 weapons (config/weapons.ts), 2 slots (3 with Packmule). Wall-buys (chalk), Supply Crate 950,
-  6 Halcyon Tonics perks (max 4), Rewirer upgrade 5000, 5 power-ups (≤4/round).
+  6 Halcyon Tonics perks (max 4), Rewirer upgrade 3000 (rewired ammo 1500), 5 power-ups (≤4/round), ammo tins from ~9% of kills (small/medium/large = 12/25/50% of max reserve).
+- Zombie looks: outfits (patient, soldier, doctor, nurse, worker, officer) with accessories and body builds, weighted per map (entities/outfits.ts).
+- Hit reactions: per-part springs; fatal head shots snap the head back, leg kills buckle forward, arm kills spin, explosions can take an arm.
 - Enemies: Tethered walker/runner/sprinter, Hounds (special round), Brute (cage over chip), 2 bosses.
 
 ## Maps

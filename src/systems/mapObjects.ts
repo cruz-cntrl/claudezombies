@@ -237,20 +237,20 @@ export class MapObjects {
       label: () => {
         const owned = g.weapons.owns(id);
         if (owned) {
-          const cost = owned.upgraded ? 2500 : def.ammoCost;
+          const cost = owned.upgraded ? ECONOMY.upgradedAmmoCost : def.ammoCost;
           return this.buyLabel(`Ammo — ${owned.name}`, cost);
         }
         return this.buyLabel(`Buy ${def.name}`, def.cost);
       },
       can: () => {
         const owned = g.weapons.owns(id);
-        const cost = owned ? (owned.upgraded ? 2500 : def.ammoCost) : def.cost;
+        const cost = owned ? (owned.upgraded ? ECONOMY.upgradedAmmoCost : def.ammoCost) : def.cost;
         return this.eco.can(cost) && !g.weapons.busy && !(owned && owned.mag === owned.stats.mag && owned.reserve === owned.stats.reserve);
       },
       onDenied: this.denied,
       use: () => {
         const owned = g.weapons.owns(id);
-        const cost = owned ? (owned.upgraded ? 2500 : def.ammoCost) : def.cost;
+        const cost = owned ? (owned.upgraded ? ECONOMY.upgradedAmmoCost : def.ammoCost) : def.cost;
         if (!this.eco.spend(cost)) return;
         audio.play('ui_purchase', { bus: 'ui', vol: 0.8 });
         audio.play('ui_chalk', { bus: 'ui', vol: 0.5 });

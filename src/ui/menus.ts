@@ -4,6 +4,7 @@ import { MAPS } from '../world/maps';
 import { DIFFICULTY, type DifficultyId } from '../config/difficulty';
 import { LORE } from '../config/lore';
 import { PERKS } from '../config/perks';
+import { ECONOMY } from '../config/economy';
 import { audio } from '../audio/audioEngine';
 import type { App } from '../main';
 
@@ -208,7 +209,7 @@ export class Menus {
       The dead come through boarded windows: hold the prompt at a window to rebuild boards (+10 each).<br>
       Spend points on chalk wall-buys, doors and debris. Find the <b>power switch</b> to wake the perk machines and the Rewirer.<br>
       The <b>Supply Crate</b> (950) gives a random weapon — until it gets bored and moves.<br>
-      <b>The Rewirer</b> (5000) overcharges your weapon. Every few rounds, the static storm brings chipped hounds. From round 12, Brutes wear cages over their chips: shoot the cage off first.
+      <b>The Rewirer</b> (${ECONOMY.rewirerCost}) overcharges your weapon. Kills sometimes drop <b>ammo tins</b> — small, medium or large — that top up every gun you carry. Every few rounds, the static storm brings chipped hounds. From round 12, Brutes wear cages over their chips: shoot the cage off first.
       <div class="h2" style="margin-top:10px">Halcyon Tonics (max 4)</div>${perkLines}
       <div class="h2" style="margin-top:10px">Power-ups</div>
       Resupply (max ammo), Overload (one-hit kills), Double Points, Kill Signal (kills every Tethered), Fortify (rebuilds every barrier).
