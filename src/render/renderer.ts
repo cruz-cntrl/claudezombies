@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { QUALITY, type QualityPreset } from './quality';
 import type { Quality } from '../core/save';
 
@@ -90,6 +91,11 @@ export class Renderer {
     this.vmCamera = new THREE.PerspectiveCamera(58, 2, 0.01, 10);
     this.scene.add(this.camera);
     this.vmScene.add(this.vmCamera);
+    // Viewmodel reflections: metals need something to reflect or they read as black.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.vmScene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.vmScene.environmentIntensity = 0.4;
+    pmrem.dispose();
 
     canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();

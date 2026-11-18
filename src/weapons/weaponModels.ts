@@ -61,7 +61,7 @@ function mats(upgraded: boolean): Record<MatKey, THREE.MeshStandardMaterial> {
   const metalT = getSurface('metal'), woodT = getSurface('wood');
   const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ vertexColors: true, ...p });
   const set: Record<MatKey, THREE.MeshStandardMaterial> = {
-    metal: std({ map: metalT.map, normalMap: metalT.normalMap, roughnessMap: metalT.roughnessMap, metalness: 0.75, roughness: 0.9, color: 0x9a9a9a }),
+    metal: std({ map: metalT.map, normalMap: metalT.normalMap, roughnessMap: metalT.roughnessMap, metalness: 0.8, roughness: 0.7, color: 0x6a6c70 }),
     dark: std({ map: metalT.map, normalMap: metalT.normalMap, metalness: 0.7, roughness: 0.55, color: 0x55585e }),
     wood: std({ map: woodT.map, normalMap: woodT.normalMap, roughnessMap: woodT.roughnessMap, metalness: 0, roughness: 1, color: 0xffffff }),
     brass: std({ metalness: 0.85, roughness: 0.35, color: 0xffffff }),
@@ -196,7 +196,7 @@ const RECIPES: Record<string, Recipe> = {
     const mag = part((k) => k.add('dark', box(0.022, 0.16, 0.03), 0, -0.07, -0.07, 0, 0.05), up);
     const bolt = part((k) => k.add('metal', box(0.03, 0.01, 0.012), 0.03, 0.035, -0.02), up);
     root.add(mag, bolt);
-    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.03, -0.38), eject: V(0.03, 0.04, -0.04), foreL: V(0, -0.08, -0.08), magPos: V(0, -0.13, -0.07), sightY: 0.062, adsZ: 0.28, hip: V(0.11, -0.11, -0.3), twoHanded: true });
+    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.03, -0.38), eject: V(0.03, 0.04, -0.04), foreL: V(0, -0.08, -0.08), magPos: V(0, -0.13, -0.07), sightY: 0.062, adsZ: 0.42, hip: V(0.11, -0.11, -0.3), twoHanded: true });
   },
   typewriter: (up) => {
     const root = part((k) => {
@@ -239,7 +239,7 @@ const RECIPES: Record<string, Recipe> = {
     const mag = part((k) => { k.add('brass', box(0.03, 0.03, 0.05), 0, 0.075, 0.0, 0, 0, 0, 0xc09040); }, up);
     mag.visible = false;
     root.add(bolt, mag);
-    return finish(root, up, { parts: { bolt, mag }, muzzle: V(0, 0.05, -0.58), eject: V(0, 0.08, 0.01), foreL: V(0, -0.03, -0.3), magPos: V(0, 0.08, 0.0), sightY: 0.088, adsZ: 0.26, hip: V(0.12, -0.12, -0.28), twoHanded: true });
+    return finish(root, up, { parts: { bolt, mag }, muzzle: V(0, 0.05, -0.58), eject: V(0, 0.08, 0.01), foreL: V(0, -0.03, -0.3), magPos: V(0, 0.08, 0.0), sightY: 0.088, adsZ: 0.31, hip: V(0.12, -0.12, -0.28), twoHanded: true });
   },
   ironside: (up) => {
     const root = part((k) => {
@@ -258,7 +258,7 @@ const RECIPES: Record<string, Recipe> = {
     const mag = part((k) => k.add('dark', box(0.03, 0.09, 0.07), 0, -0.04, -0.06), up);
     const bolt = part((k) => k.add('metal', box(0.014, 0.012, 0.02), -0.03, 0.035, -0.05), up);
     root.add(mag, bolt);
-    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.04, -0.67), eject: V(0.03, 0.05, -0.05), foreL: V(0, -0.02, -0.33), magPos: V(0, -0.08, -0.06), sightY: 0.08, adsZ: 0.27, hip: V(0.12, -0.12, -0.28), twoHanded: true });
+    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.04, -0.67), eject: V(0.03, 0.05, -0.05), foreL: V(0, -0.02, -0.33), magPos: V(0, -0.08, -0.06), sightY: 0.08, adsZ: 0.32, hip: V(0.12, -0.12, -0.28), twoHanded: true });
   },
   vanguard: (up) => {
     const root = part((k) => {
@@ -278,7 +278,7 @@ const RECIPES: Record<string, Recipe> = {
     }, up);
     const bolt = part((k) => k.add('metal', box(0.024, 0.008, 0.008), -0.03, 0.06, -0.12), up);
     root.add(mag, bolt);
-    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.04, -0.43), eject: V(0.025, 0.055, -0.05), foreL: V(0, -0.0, -0.25), magPos: V(0, -0.09, -0.08), sightY: 0.1, adsZ: 0.27, hip: V(0.12, -0.13, -0.29), twoHanded: true });
+    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.04, -0.43), eject: V(0.025, 0.055, -0.05), foreL: V(0, -0.0, -0.25), magPos: V(0, -0.09, -0.08), sightY: 0.1, adsZ: 0.32, hip: V(0.12, -0.13, -0.29), twoHanded: true });
   },
   trench: (up) => {
     const root = part((k) => {
@@ -342,7 +342,7 @@ const RECIPES: Record<string, Recipe> = {
       for (let i = 0; i < 8; i++) k.add('brass', cyl(0.004, 0.004, 0.03, 6), -0.03 - i * 0.004, 0.035 - i * 0.008, -0.02, 0, 0, Math.PI / 2, 0xc8a040);
     }, up);
     root.add(cover, mag);
-    return finish(root, up, { parts: { cover, mag }, muzzle: V(0, 0.04, -0.62), eject: V(0.03, 0.02, -0.02), foreL: V(-0.03, -0.06, -0.06), magPos: V(-0.06, -0.04, -0.03), sightY: 0.1, adsZ: 0.28, hip: V(0.13, -0.13, -0.3), twoHanded: true });
+    return finish(root, up, { parts: { cover, mag }, muzzle: V(0, 0.04, -0.62), eject: V(0.03, 0.02, -0.02), foreL: V(-0.03, -0.06, -0.06), magPos: V(-0.06, -0.04, -0.03), sightY: 0.1, adsZ: 0.33, hip: V(0.13, -0.13, -0.3), twoHanded: true });
   },
   longshot: (up) => {
     const root = part((k) => {
@@ -363,7 +363,7 @@ const RECIPES: Record<string, Recipe> = {
       k.add('metal', sphere(0.009, 8, 6), 0.055, 0.04, 0.06);
     }, up, V(0, 0.04, 0.06));
     root.add(bolt);
-    return finish(root, up, { parts: { bolt }, muzzle: V(0, 0.045, -0.56), eject: V(0.025, 0.05, 0.02), foreL: V(0, -0.03, -0.25), magPos: V(0, 0.04, 0.03), sightY: 0.1, adsZ: 0.16, hip: V(0.13, -0.13, -0.29), twoHanded: true, scope: true });
+    return finish(root, up, { parts: { bolt }, muzzle: V(0, 0.045, -0.56), eject: V(0.025, 0.05, 0.02), foreL: V(0, -0.03, -0.25), magPos: V(0, 0.04, 0.03), sightY: 0.1, adsZ: 0.21, hip: V(0.13, -0.13, -0.29), twoHanded: true, scope: true });
   },
   marksman: (up) => {
     const root = part((k) => {
@@ -381,7 +381,7 @@ const RECIPES: Record<string, Recipe> = {
     const mag = part((k) => k.add('dark', box(0.02, 0.06, 0.03), 0, -0.035, -0.01, 0, 0.05), up);
     const bolt = part((k) => k.add('metal', box(0.012, 0.01, 0.03), 0.022, 0.04, -0.03), up);
     root.add(mag, bolt);
-    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.042, -0.46), eject: V(0.02, 0.05, -0.0), foreL: V(0, -0.03, -0.2), magPos: V(0, -0.07, -0.01), sightY: 0.072, adsZ: 0.24, hip: V(0.12, -0.12, -0.29), twoHanded: true });
+    return finish(root, up, { parts: { mag, bolt }, muzzle: V(0, 0.042, -0.46), eject: V(0.02, 0.05, -0.0), foreL: V(0, -0.03, -0.2), magPos: V(0, -0.07, -0.01), sightY: 0.072, adsZ: 0.29, hip: V(0.12, -0.12, -0.29), twoHanded: true });
   },
   thumper: (up) => {
     const root = part((k) => {
@@ -455,7 +455,7 @@ export function buildHand(right: boolean): THREE.Group {
   const k = new Kit();
   const s = right ? 1 : -1;
   // forearm sleeve (along +Z back toward the camera)
-  k.add('grip', cyl(0.034, 0.04, 0.3, 10), 0, 0, 0.17, 0, Math.PI / 2, 0, 0x4a4a32);
+  k.add('grip', cyl(0.034, 0.04, 0.3, 10), 0, 0, 0.17, 0, Math.PI / 2, 0, 0x33331f);
   k.add('grip', cyl(0.042, 0.042, 0.04, 10), 0, 0, 0.05, 0, Math.PI / 2, 0, 0x3a3a26);
   // glove palm + fingers wrapping the grip
   k.add('grip', rbox(0.05, 0.07, 0.06, 0.018), 0, 0, 0.0, 0, 0, 0, 0x3a2618);

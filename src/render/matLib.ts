@@ -9,7 +9,7 @@ import type { Surface } from '../world/mapTypes';
  *   plain:<name>    — untextured baked (tinted by vertex colour)
  *   glow            — unlit emissive (vertex colour * HDR boost) for dials, signs, chip racks
  */
-const METALLIC: Partial<Record<Surface, number>> = { metal: 0.45, riveted: 0.35, grate: 0.5 };
+const METALLIC: Partial<Record<Surface, number>> = { metal: 0.3, riveted: 0.22, grate: 0.3 };
 
 export class MatLib {
   private mats = new Map<string, THREE.Material>();
@@ -39,14 +39,14 @@ export class MatLib {
       const name = key.slice(6);
       const p: THREE.MeshStandardMaterialParameters = { roughness: 0.8, metalness: 0 };
       switch (name) {
-        case 'brass': p.roughness = 0.38; p.metalness = 0.85; break;
-        case 'chrome': p.roughness = 0.25; p.metalness = 0.9; break;
+        case 'brass': p.roughness = 0.4; p.metalness = 0.5; break;
+        case 'chrome': p.roughness = 0.3; p.metalness = 0.55; break;
         case 'glass': p.roughness = 0.08; p.metalness = 0.2; break;
         case 'rubber': p.roughness = 0.95; break;
         case 'fabric': p.roughness = 1; break;
         case 'paper': p.roughness = 0.95; break;
         case 'paint': p.roughness = 0.6; p.metalness = 0.15; break;
-        case 'iron': p.roughness = 0.55; p.metalness = 0.6; break;
+        case 'iron': p.roughness = 0.55; p.metalness = 0.35; break;
       }
       m = bakedStandard(null, p);
     }

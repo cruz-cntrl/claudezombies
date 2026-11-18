@@ -16,50 +16,72 @@ const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const SKIN = 0xffffff;
 
 function humanGeometry(part: HumanPart): THREE.BufferGeometry {
+  // lathe profile helper: [radius, y] pairs, flattened front-to-back
+  const body = (pts: [number, number][], seg: number, flat: number) => {
+    const g = lathe(pts, seg);
+    g.scale(1, 1, flat);
+    return g;
+  };
+  /** Ragged skirt: open cylinder whose bottom edge is torn to random lengths. */
+  const rag = (rTop: number, rBot: number, len: number, seg: number, seed: number) => {
+    const g = new THREE.CylinderGeometry(rTop, rBot, len, seg, 2, true);
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      if (pos.getY(i) < -len / 2 + 1e-3) pos.setY(i, pos.getY(i) + (Math.sin(i * 12.9898 + seed) * 0.5 + 0.5) * len * 0.55);
+    }
+    g.translate(0, -len / 2, 0);
+    g.computeVertexNormals();
+    return g;
+  };
+  const capsule = (r: number, len: number) => { const g = new THREE.CapsuleGeometry(r, len, 2, 6); g.translate(0, -len / 2 - r * 0.6, 0); return g; };
   switch (part) {
     case 'pelvis': return compose([
-      [rbox(0.32, 0.2, 0.2, 0.06), M(0, 0, 0)],
-      // tattered gown / coat flaps
-      [box(0.33, 0.28, 0.02), M(0, -0.18, 0.1, 0, 0.12), 0xd0d0d0],
-      [box(0.16, 0.22, 0.02), M(-0.09, -0.16, -0.1, 0, -0.1, 0.1), 0xc8c8c8],
-      [box(0.14, 0.32, 0.02), M(0.1, -0.2, -0.1, 0, -0.08, -0.12), 0xc0c0c0],
+      [body([[0.0, -0.1], [0.15, -0.09], [0.17, 0.0], [0.15, 0.1], [0.0, 0.11]], 8, 0.7), M(0, 0, 0)],
+      [rag(0.18, 0.21, 0.42, 10, 3), M(0, 0.05, 0, 0, 0, 0, 1, 1, 0.78), 0xd8d8d0],
+      [box(0.09, 0.06, 0.004), M(0.08, -0.05, 0.13), 0x5a1410],
     ]);
     case 'torso': return compose([
-      [rbox(0.36, 0.48, 0.22, 0.08), M(0, 0.25, 0)],
-      [rbox(0.42, 0.14, 0.22, 0.06), M(0, 0.44, -0.01)],
-      // exposed ribs / torn cloth patch
-      [box(0.12, 0.1, 0.02), M(0.08, 0.3, 0.11, 0, 0, 0.2), 0x6a1a14],
-      [box(0.03, 0.14, 0.03), M(0.04, 0.3, 0.115, 0, 0, 0.6), 0x9a7a6a],
-      [box(0.03, 0.14, 0.03), M(0.1, 0.28, 0.115, 0, 0, 0.6), 0x9a7a6a],
+      // hunched, narrow-waisted, uneven ribcage
+      [body([[0.0, 0.0], [0.15, 0.0], [0.17, 0.15], [0.2, 0.32], [0.21, 0.44], [0.16, 0.52], [0.07, 0.56], [0.0, 0.57]], 9, 0.66), M(0, 0, 0)],
+      // shoulder knobs (one higher, set per instance by the rig)
+      [sphere(0.075, 6, 5), M(-0.2, 0.47, 0), 0xd0d0c8],
+      [sphere(0.075, 6, 5), M(0.2, 0.47, 0), 0xd0d0c8],
+      // torn gown flap + exposed ribs + stains
+      [box(0.13, 0.12, 0.01), M(0.07, 0.3, 0.13, 0, 0.1, 0.25), 0x5a2018],
+      ...[0, 1, 2].map((k) => [box(0.11, 0.012, 0.02), M(0.07, 0.25 + k * 0.035, 0.137, 0, 0, 0.2), 0xb0a090] as [THREE.BufferGeometry, THREE.Matrix4, number]),
+      [box(0.16, 0.22, 0.004), M(-0.08, 0.2, 0.14, 0, 0.05, -0.1), 0x4a1410],
+      [box(0.05, 0.07, 0.004), M(-0.12, 0.4, 0.14), 0xd8d4c0],
       // neck + exposed wiring
-      [cyl(0.055, 0.065, 0.12, 8), M(0, 0.55, 0.0), 0xb8a8a0],
-      [tube([V(0.04, 0.48, 0.06), V(0.07, 0.56, 0.05), V(0.05, 0.64, 0.0)], 0.008, 6, 4), null, 0x1a1a1a],
-      [tube([V(-0.04, 0.47, 0.05), V(-0.06, 0.57, 0.02), V(-0.03, 0.63, -0.02)], 0.007, 6, 4), null, 0x8a3a10],
+      [cyl(0.05, 0.062, 0.13, 7), M(0, 0.6, 0.0), 0xb8a8a0],
+      [tube([V(0.04, 0.5, 0.06), V(0.07, 0.58, 0.05), V(0.05, 0.66, 0.0)], 0.008, 6, 4), null, 0x1a1a1a],
+      [tube([V(-0.04, 0.49, 0.05), V(-0.06, 0.59, 0.02), V(-0.03, 0.65, -0.02)], 0.007, 6, 4), null, 0x8a3a10],
     ]);
     case 'head': return compose([
-      [sphere(0.115, 12, 10), M(0, 0.12, 0, 0, 0, 0, 0.92, 1.08, 1.0)],
-      [rbox(0.13, 0.07, 0.12, 0.03), M(0, 0.03, 0.04, 0, 0.25)],
-      // eye sockets + mouth (dark)
-      [sphere(0.026, 6, 5), M(-0.04, 0.13, 0.095), 0x1a0606],
-      [sphere(0.026, 6, 5), M(0.042, 0.125, 0.095), 0x1a0606],
-      [sphere(0.008, 4, 3), M(-0.04, 0.13, 0.112), 0xb0a080],
-      [sphere(0.008, 4, 3), M(0.042, 0.125, 0.112), 0xb0a080],
-      [box(0.07, 0.025, 0.03), M(0, 0.04, 0.1), 0x200606],
-      [box(0.05, 0.012, 0.02), M(0, 0.055, 0.108), 0xa09a80],
+      [sphere(0.112, 10, 8), M(0, 0.13, -0.005, 0, 0, 0, 0.9, 1.1, 1.0)],
+      // brow ridge, sunken cheeks, hanging jaw
+      [box(0.15, 0.03, 0.05), M(0, 0.165, 0.075, 0, 0.15), 0xc8c0b0],
+      [rbox(0.11, 0.055, 0.1, 0.02), M(0, 0.0, 0.05, 0, 0.42)],
+      [box(0.08, 0.008, 0.06), M(0, 0.03, 0.08, 0, 0.35), 0xa09a80],
+      [sphere(0.03, 6, 5), M(-0.04, 0.13, 0.09), 0x140404],
+      [sphere(0.03, 6, 5), M(0.042, 0.125, 0.09), 0x140404],
+      [sphere(0.008, 4, 3), M(-0.04, 0.13, 0.108), 0xc0b080],
+      [sphere(0.008, 4, 3), M(0.042, 0.125, 0.108), 0xc0b080],
+      [box(0.07, 0.03, 0.04), M(0, 0.055, 0.095), 0x200404],
       // surgical scar & staples around the chip site
-      [box(0.012, 0.012, 0.12), M(0.03, 0.22, -0.02, 0, 0, 0.4), 0x5a1a14],
+      [box(0.012, 0.012, 0.13), M(0.03, 0.22, -0.02, 0, 0, 0.4), 0x5a1a14],
+      ...[0, 1, 2, 3].map((k) => [box(0.03, 0.006, 0.006), M(0.025 + k * 0.004, 0.225, -0.07 + k * 0.035, 0, 0, 0.4), 0x9a9a9a] as [THREE.BufferGeometry, THREE.Matrix4, number]),
     ]);
-    case 'uArmL': case 'uArmR': return compose([[rbox(0.085, 0.36, 0.085, 0.035), M(0, -0.17, 0)]]);
+    case 'uArmL': case 'uArmR': return compose([[capsule(0.045, 0.32), M(0, 0.02, 0)], [rag(0.06, 0.065, 0.16, 6, 7), M(0, 0.0, 0), 0xd0d0c8]]);
     case 'lArmL': case 'lArmR': return compose([
-      [rbox(0.07, 0.34, 0.07, 0.03), M(0, -0.17, 0)],
-      [rbox(0.08, 0.1, 0.035, 0.015), M(0, -0.38, 0.0)],
-      [box(0.012, 0.09, 0.012), M(-0.025, -0.46, 0.01, 0, 0.3), 0x8a7a6a],
-      [box(0.012, 0.1, 0.012), M(0.0, -0.47, 0.01, 0, 0.35), 0x8a7a6a],
-      [box(0.012, 0.09, 0.012), M(0.025, -0.46, 0.01, 0, 0.3), 0x8a7a6a],
+      [capsule(0.036, 0.32), M(0, 0.015, 0)],
+      [rbox(0.08, 0.1, 0.035, 0.015), M(0, -0.4, 0.0)],
+      [box(0.012, 0.1, 0.012), M(-0.025, -0.48, 0.015, 0, 0.35), 0x8a7a6a],
+      [box(0.012, 0.11, 0.012), M(0.0, -0.49, 0.015, 0, 0.4), 0x8a7a6a],
+      [box(0.012, 0.1, 0.012), M(0.025, -0.48, 0.015, 0, 0.35), 0x8a7a6a],
     ]);
-    case 'uLegL': case 'uLegR': return compose([[rbox(0.12, 0.44, 0.12, 0.05), M(0, -0.21, 0)]]);
+    case 'uLegL': case 'uLegR': return compose([[capsule(0.06, 0.36), M(0, 0.03, 0)]]);
     case 'lLegL': case 'lLegR': return compose([
-      [rbox(0.1, 0.42, 0.1, 0.04), M(0, -0.2, 0)],
+      [capsule(0.048, 0.34), M(0, 0.02, 0)],
       [rbox(0.1, 0.07, 0.22, 0.03), M(0, -0.42, 0.05), 0x3a3028],
     ]);
     case 'chip': return compose([

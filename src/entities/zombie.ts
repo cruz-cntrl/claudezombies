@@ -30,6 +30,9 @@ export class Zombie {
   trousers = new THREE.Color();
   limp = 0;
   phase = 0;
+  shoulder = 0;   // asymmetric shoulder height
+  chipOff = 0;    // chip placement variation
+  armLen = 1;
   window: WindowVisual | null = null;
   tearT = 0;
   attackT = 0;
@@ -169,6 +172,9 @@ export class ZombieManager {
     if (type === 'hound') { z.skin.setHex(0x8a4a40); z.cloth.setHex(0x7a3a30); }
     if (type === 'brute') { z.skin.setHex(0x7a7a6c); z.cloth.setHex(0x3a3e30); z.trousers.setHex(0x2a2a24); }
     z.limp = Math.random() < 0.35 ? rand(0.3, 0.8) * (Math.random() < 0.5 ? -1 : 1) : 0;
+    z.shoulder = rand(-0.06, 0.06);
+    z.chipOff = rand(-1, 1);
+    z.armLen = type === 'brute' ? 1.05 : rand(1.06, 1.18);
     z.phase = Math.random() * 10;
     z.cageHp = type === 'brute' ? Math.max(BRUTE.minCageHp, hp / BRUTE.hpMult * BRUTE.cageHpMult) : 0;
     z.chipDead = false; z.chipPop = null; z.chipStutter = 0;
@@ -684,11 +690,11 @@ export class ZombieManager {
     P.local(torso, pelvis, 0, 0.06, 0, hunch, Math.sin(z.phase * 0.5) * 0.08, bodyRoll, torsoScale, 1, torsoScale);
     _col.copy(z.cloth);
     this.setInst(H, 'torso', i, torso, _col);
-    P.local(head, torso, 0, 0.6, 0.02, headX - hunch * 0.6, headZ * 0.4, headZ, 1 / torsoScale);
+    P.local(head, torso, 0, 0.62, 0.02, headX - hunch * 0.6, headZ * 0.4, headZ + z.shoulder * 2, 1 / torsoScale);
     _col.copy(z.skin);
     this.setInst(H, 'head', i, head, _col);
     // chip + glow
-    P.local(tmp, head, 0.045, 0.215, -0.02, 0.2, 0.3, -0.35);
+    P.local(tmp, head, 0.045 + z.chipOff * 0.025, 0.215 - Math.abs(z.chipOff) * 0.012, -0.02 + z.chipOff * 0.02, 0.2, 0.3 + z.chipOff * 0.4, -0.35 - z.chipOff * 0.15);
     if (z.chipPop) {
       const c = z.chipPop;
       P.local(tmp, IDENT, c.x, c.y, c.z, c.t * 9, c.t * 7, 0, s);
@@ -716,10 +722,10 @@ export class ZombieManager {
     for (const side of [-1, 1]) {
       const ax = side < 0 ? armLx : armRx, az = side < 0 ? armLz : armRz, el = side < 0 ? elbowL : elbowR;
       const swayA = Math.sin(t * 2 + i + side) * 0.06;
-      P.local(ua, torso, side * 0.22, 0.47, 0, ax + swayA, 0, az + side * 0.05);
+      P.local(ua, torso, side * 0.21, 0.47 + side * z.shoulder, 0, ax + swayA, 0, az + side * 0.05, 1, z.armLen, 1);
       _col.copy(z.type === 'brute' ? z.skin : z.cloth).multiplyScalar(0.95);
       this.setInst(H, side < 0 ? 'uArmL' : 'uArmR', i, ua, _col);
-      P.local(la, ua, 0, -0.36, 0, el, 0, 0);
+      P.local(la, ua, 0, -0.36, 0, el, 0, 0, 1, 1, 1);
       _col.copy(z.skin);
       this.setInst(H, side < 0 ? 'lArmL' : 'lArmR', i, la, _col);
       z.limbs[li++].setFromMatrixPosition(ua);

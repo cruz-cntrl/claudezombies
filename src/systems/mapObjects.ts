@@ -13,6 +13,20 @@ import type { Marker } from '../world/grid';
 import { pick, randInt } from '../core/math';
 import type { Surface } from '../world/mapTypes';
 
+let beamTex: THREE.CanvasTexture | null = null;
+/** Vertical alpha gradient so the crate beam fades in above the crate and out into the sky. */
+function beamAlpha() {
+  if (beamTex) return beamTex;
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 128;
+  const g = c.getContext('2d')!;
+  const grd = g.createLinearGradient(0, 128, 0, 0);
+  grd.addColorStop(0, '#000'); grd.addColorStop(0.18, '#fff'); grd.addColorStop(0.6, '#888'); grd.addColorStop(1, '#000');
+  g.fillStyle = grd; g.fillRect(0, 0, 4, 128);
+  beamTex = new THREE.CanvasTexture(c);
+  return beamTex;
+}
+
 const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 
 /** Canvas helpers -------------------------------------------------------------- */
@@ -347,7 +361,7 @@ export class MapObjects {
     lid.position.set(0, 0.63, -0.31);
     group.add(lid);
     // light beam marker
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.3, 12, 12, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.8, 0.9), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true }));
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.3, 12, 12, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.8, 0.9), alphaMap: beamAlpha(), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true }));
     beam.position.set(m.i + 0.5, 8.6, m.j + 0.5);
     this.group.add(group, beam);
     group.visible = false; beam.visible = false;

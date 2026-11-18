@@ -123,6 +123,9 @@ export class Viewmodel {
     this.hemi.color.setRGB(Math.min(2.5, r * k + 0.32), Math.min(2.5, g * k + 0.3), Math.min(2.5, b * k + 0.28));
     this.hemi.groundColor.setRGB(r * 0.6 + 0.06, g * 0.6 + 0.06, b * 0.6 + 0.06);
     this.key.intensity = 0.9 + (r + g + b) * 0.9;
+    // environment reflections follow how lit the player's spot is
+    const sc = this.hemi.parent as THREE.Scene | null;
+    if (sc) sc.environmentIntensity = Math.min(0.42, 0.1 + (r + g + b) * 0.5);
   }
 
   update(dt: number, s: VmState) {
@@ -173,7 +176,7 @@ export class Viewmodel {
     // left hand default
     const L = this.handL;
     L.position.copy(gun.foreL);
-    L.rotation.set(0.25, 0.55, -0.35);
+    L.rotation.set(0.3, -0.6, 0.35);
     L.visible = true;
     // gun local pose (reload tilt etc.)
     gun.root.position.set(0, 0, 0);
@@ -251,7 +254,7 @@ export class Viewmodel {
           const k = t < 0.2 ? (t - 0.1) / 0.1 : t < 0.4 ? 1 - (t - 0.2) / 0.2 * 0 : 1;
           lerp3(gun.foreL, gun.magPos, Math.min(1, k));
           if (t > 0.3 && t < 0.5) lerp3(gun.magPos, below, Math.sin(((t - 0.3) / 0.2) * Math.PI));
-          L.rotation.set(0.6, 0.3, -0.6);
+          L.rotation.set(0.5, -0.4, 0.5);
         }
         const bolt = P.bolt ?? P.slide;
         if (bolt && t > 0.78 && t < 0.92) bolt.position.z += Math.sin(((t - 0.78) / 0.14) * Math.PI) * 0.05;
@@ -264,7 +267,7 @@ export class Viewmodel {
         }
         if (P.bolt && t > 0.15 && t < 0.3) P.bolt.position.z += 0.05;
         if (P.bolt && t > 0.62 && t < 0.72) P.bolt.position.z += 0.05 * (1 - (t - 0.62) / 0.1);
-        if (t > 0.25 && t < 0.7) lerp3(gun.foreL, gun.magPos.clone().add(new THREE.Vector3(0, 0.1, 0)), Math.sin(((t - 0.25) / 0.45) * Math.PI));
+        if (t > 0.25 && t < 0.7) { lerp3(gun.foreL, gun.magPos.clone().add(new THREE.Vector3(-0.03, 0.08, -0.04)), Math.sin(((t - 0.25) / 0.45) * Math.PI)); L.rotation.set(1.1, -0.5, 0.7); }
         break;
       }
       case 'cylinder': {
