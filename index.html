@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="TETHERED — a 1944 wave-survival horror shooter. Shoot the chip." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <title>TETHERED</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+      <div id="fx-layer">
+        <div id="vignette"></div>
+        <div id="damage-edge"></div>
+        <div id="hit-dirs"></div>
+      </div>
+      <div id="hud"></div>
+      <div id="controls"></div>
+      <div id="screens"></div>
+      <div id="reserved-zone" aria-hidden="true"></div>
+      <div id="rotate">
+        <div class="rotate-inner">
+          <div class="rotate-phone"></div>
+          <div class="rotate-title">ROTATE YOUR DEVICE</div>
+          <div class="rotate-sub">Tethered is played in landscape.</div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

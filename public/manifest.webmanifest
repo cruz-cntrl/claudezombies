@@ -1,0 +1,10 @@
+{
+  "name": "TETHERED",
+  "short_name": "Tethered",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "start_url": "./",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

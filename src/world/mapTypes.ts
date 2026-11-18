@@ -1,0 +1,83 @@
+import type { PerkId } from '../config/perks';
+
+/** Surface styles map to procedural texture sets in render/proceduralTextures.ts */
+export type Surface =
+  | 'tile' | 'tileWall' | 'concrete' | 'stone' | 'wood' | 'metal' | 'grate' | 'dirt' | 'grass'
+  | 'plaster' | 'wallpaper' | 'brick' | 'riveted' | 'ceilingTile' | 'water';
+
+export type PropTheme =
+  | 'reception' | 'ward' | 'theater' | 'boiler' | 'courtyard' | 'library'
+  | 'dock' | 'assembly' | 'generator' | 'control' | 'roof' | 'corridor' | 'test';
+
+export type ReverbType = 'hall' | 'room' | 'metal' | 'outdoor';
+
+export interface ZoneDef {
+  letter: string;
+  name: string;
+  floor: Surface;
+  wall: Surface;
+  /** Lower wall band (wainscot) surface */
+  wainscot?: Surface;
+  ceiling: Surface | null; // null = open sky
+  height: number;
+  lightColor: number;
+  lightIntensity: number;
+  /** Ambient (bounce) color baked into vertices */
+  ambient: number;
+  reverb: ReverbType;
+  theme: PropTheme;
+  /** Spacing between auto-placed ceiling lights (cells) */
+  lightSpacing?: number;
+  water?: boolean;
+  rain?: boolean;
+  steam?: boolean;
+  /** Floor y offset — purely visual (e.g. flooded basement water plane). */
+  waterLevel?: number;
+}
+
+export interface DoorDef {
+  id: string;       // digit character used in the layout
+  cost: number;
+  kind: 'door' | 'debris';
+  label: string;
+}
+
+export interface MapDef {
+  id: string;
+  name: string;
+  subtitle: string;
+  desc: string;
+  layout: string[];
+  zones: ZoneDef[];
+  doors: DoorDef[];
+  /** Row-major assignment of marker cells. */
+  markers: {
+    p: PerkId[];        // perk machines
+    b: string[];        // wall-buys (weapon ids)
+    e: string[];        // easter egg / special anchors
+  };
+  fogColor: number;
+  fogDensity: number;
+  outsideSurface: Surface;
+  exterior: Surface;
+  perimeter: Surface;
+  outsideAmbient: number;
+  doorStyle: 'gate' | 'shutter';
+  /** Map-specific extra geometry / setpieces, run during build. */
+  decorate?: (ctx: import('./mapBuilder').BuildContext) => void;
+  sky: 'night' | 'storm';
+  chipColor: number;
+  /** Music easter-egg track key */
+  songId: string;
+  /** Extra flavour props: list of [anchor id, kind] handled by the map module */
+}
+
+/** Layout legend
+ *  ' ' void (nothing)            '#' wall              ',' outside ground (zombies only)
+ *  'A'..'Z' floor of zone letter 'w' boarded window    '1'..'9' door/debris id
+ *  '*' player start              'v' spawn vent         'x' solid prop slot (theme prop)
+ *  'p' perk machine              'b' wall-buy (chalk on adjacent wall)
+ *  'c' supply crate spot          'r' Rewirer           's' power switch
+ *  'e' easter-egg anchor          'l' extra light        'o' low cover prop (blocks movement, not bullets)
+ */
+export const LEGEND_INFO = true;
