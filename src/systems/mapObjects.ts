@@ -347,8 +347,8 @@ export class MapObjects {
     lid.position.set(0, 0.63, -0.31);
     group.add(lid);
     // light beam marker
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.5, 14, 16, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.8, 0.9), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-    beam.position.set(m.i + 0.5, 7, m.j + 0.5);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.3, 12, 12, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.8, 0.9), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: true }));
+    beam.position.set(m.i + 0.5, 8.6, m.j + 0.5);
     this.group.add(group, beam);
     group.visible = false; beam.visible = false;
     this.crateSpots.push({ m, group, lid, beam });
@@ -488,7 +488,8 @@ export class MapObjects {
       }
     }
     // beam pulse
-    (spot.beam.material as THREE.MeshBasicMaterial).opacity = 0.16 + Math.sin(this.g.time * 2) * 0.05;
+    const pd = Math.hypot(this.g.player.pos.x - cx, this.g.player.pos.z - cz);
+    (spot.beam.material as THREE.MeshBasicMaterial).opacity = (0.08 + Math.sin(this.g.time * 2) * 0.03) * Math.min(1, Math.max(0.15, (pd - 1.5) / 6));
   }
 
   private showDisplay(id: string) {
