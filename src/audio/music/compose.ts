@@ -49,6 +49,7 @@ export function piano(ctx: Ctx, out: AudioNode, t: number, n: number, dur: numbe
 
 export function tom(ctx: Ctx, out: AudioNode, t: number, f: number, level: number) {
   thud(ctx, out, t, f * 1.8, f, 0.45, level);
+  burst(ctx, out, t, 'bandpass', 900, 1.2, 0.06, level * 0.28, 'pink');
   burst(ctx, out, t, 'lowpass', 400, 0.7, 0.12, level * 0.35, 'brown');
 }
 
@@ -67,7 +68,12 @@ export function hat(ctx: Ctx, out: AudioNode, t: number, level: number, open = f
   burst(ctx, out, t, 'bandpass', 6500, 1.2, open ? 0.18 : 0.04, level);
 }
 
-/** Distorted bass note (saw + sub through drive + low-pass). */
+/** Shared amps: one waveshaper per instrument bus (fast to render, and how real amps work). */
+export function bassAmp(ctx: Ctx, out: AudioNode) { const i = gain(ctx, 1); chain(i, shaper(ctx, 4), filt(ctx, 'lowpass', 1400, 0.9), out); return i; }
+export function guitarAmp(ctx: Ctx, out: AudioNode) { const i = gain(ctx, 1); chain(i, shaper(ctx, 12), filt(ctx, 'highpass', 90), filt(ctx, 'peaking', 700, 1, 4), filt(ctx, 'lowpass', 2600, 0.9), out); return i; }
+export function leadAmp(ctx: Ctx, out: AudioNode) { const i = gain(ctx, 1); chain(i, shaper(ctx, 6), filt(ctx, 'bandpass', 1100, 0.7), filt(ctx, 'lowpass', 2800), out); return i; }
+
+/** Distorted bass note (saw + sub) into a bass amp. */
 export function dirtyBass(ctx: Ctx, out: AudioNode, t: number, n: number, dur: number, level: number) {
   const f = midi(n);
   const g = gain(ctx, 0);
@@ -78,7 +84,7 @@ export function dirtyBass(ctx: Ctx, out: AudioNode, t: number, n: number, dur: n
   g.gain.linearRampToValueAtTime(0.0001, t + dur);
   const lp = filt(ctx, 'lowpass', 1100, 1.2);
   sweep(lp.frequency, t, 1600, 500, dur);
-  chain(g, shaper(ctx, 4), lp, out);
+  chain(g, lp, out);
   for (const [type, mul, a] of [['sawtooth', 1, 0.5], ['sine', 0.5, 0.6]] as [OscillatorType, number, number][]) {
     const o = osc(ctx, type, f * mul, t, dur + 0.05);
     chain(o, gain(ctx, a), g);
@@ -93,9 +99,7 @@ export function guitar(ctx: Ctx, out: AudioNode, t: number, root: number, dur: n
   g.gain.setTargetAtTime(level * (mute ? 0.2 : 0.7), t + 0.01, mute ? 0.04 : 0.5);
   g.gain.setValueAtTime(level * (mute ? 0.05 : 0.6), t + dur * 0.95);
   g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.05);
-  const cab = filt(ctx, 'lowpass', mute ? 1300 : 2600, 0.9);
-  const body = filt(ctx, 'peaking', 700, 1, 4);
-  chain(g, shaper(ctx, 12), filt(ctx, 'highpass', 90), body, cab, out);
+  if (mute) chain(g, filt(ctx, 'lowpass', 900, 0.7), out); else chain(g, out);
   for (const iv of [0, 7, 12]) for (const d of [-8, 8]) {
     const o = osc(ctx, 'sawtooth', midi(root + iv) * Math.pow(2, d / 1200), t, dur + 0.1);
     chain(o, gain(ctx, 0.12), g);
@@ -109,7 +113,7 @@ export function lead(ctx: Ctx, out: AudioNode, t: number, n: number, dur: number
   g.gain.linearRampToValueAtTime(level, t + 0.03);
   g.gain.setValueAtTime(level * 0.85, t + dur * 0.8);
   g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.1);
-  chain(g, shaper(ctx, 6), filt(ctx, 'bandpass', 1100, 0.7), filt(ctx, 'lowpass', 2800), out);
+  chain(g, out);
   const vib = osc(ctx, 'sine', 5.5, t, dur + 0.2);
   const vg = gain(ctx, 0);
   vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(midi(n) * 0.012, t + dur * 0.5);

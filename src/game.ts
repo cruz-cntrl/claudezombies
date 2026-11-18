@@ -22,6 +22,7 @@ import { ECONOMY } from './config/economy';
 import { damp } from './core/math';
 import { MapObjects } from './systems/mapObjects';
 import { AimAssist } from './input/aimAssist';
+import { createGunModel } from './weapons/weaponModels';
 import { AmbientFx } from './systems/ambientFx';
 import { EasterEggs } from './systems/easterEggs';
 import type { Boss } from './entities/bosses/boss';
@@ -159,6 +160,7 @@ export class Game {
       bus.on('zombieKilled', () => { /* stats handled in combat */ }),
     );
     this.hud.setVisible(true);
+    this.warmup();
     // 3D audio occlusion: low-pass sounds behind walls (throttled inside the engine)
     const grid = world.grid;
     audio.occluder = (ax, az, bx, bz) => grid.los(ax, az, bx, bz);
@@ -172,6 +174,29 @@ export class Game {
     r.scene.background = new THREE.Color(def.fogColor);
     world.setupLightPool(r.scene, r.preset.practicalLights);
     return world;
+  }
+
+  /**
+   * Compile every shader up front (muzzle flash, decals, particles, hidden props, every gun model
+   * and the upgraded camo) so the first shot / first kill doesn't hitch.
+   */
+  private warmup() {
+    const r = this.r;
+    const hidden: THREE.Object3D[] = [];
+    const show = (root: THREE.Object3D) => root.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+    const extra = new THREE.Group();
+    for (const id of ['warden', 'chatterbox', 'trench', 'disruptor']) for (const up of [false, true]) {
+      const m = createGunModel(id, up);
+      extra.add(m.root);
+    }
+    r.vmScene.add(extra);
+    show(r.scene); show(r.vmScene);
+    try {
+      r.renderer.compile(r.scene, r.camera);
+      r.renderer.compile(r.vmScene, r.vmCamera);
+    } catch { /* compile is best-effort */ }
+    for (const o of hidden) o.visible = false;
+    r.vmScene.remove(extra);
   }
 
   // ---------------------------------------------------------------- player damage

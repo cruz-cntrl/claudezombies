@@ -38,8 +38,8 @@ export const GUN_PROFILES: Record<string, GunProfile> = {
   gravedigger: { crack: 2800, crackLvl: 0.75, thump: [130, 40, 0.14], thumpLvl: 1.0, bark: 900, barkQ: 0.9, barkDecay: 0.1, barkLvl: 0.85, boom: 700, boomDecay: 0.2, boomLvl: 0.8, tail: 0.7, tailLvl: 0.35, tailLp: 700, drive: 3.2, mech: 'none', dur: 0.85 },
   longshot:    { crack: 3400, crackLvl: 1.0, thump: [130, 34, 0.3], thumpLvl: 1.0, bark: 1000, barkQ: 0.8, barkDecay: 0.15, barkLvl: 0.9, boom: 650, boomDecay: 0.45, boomLvl: 0.9, tail: 2.0, tailLvl: 0.55, tailLp: 650, drive: 3.4, mech: 'bolt', mechDelay: 0.45, dur: 2.2 },
   marksman:    { crack: 3000, crackLvl: 0.8, thump: [150, 46, 0.13], thumpLvl: 0.95, bark: 1150, barkQ: 1.0, barkDecay: 0.09, barkLvl: 0.75, boom: 850, boomDecay: 0.18, boomLvl: 0.65, tail: 0.8, tailLvl: 0.35, tailLp: 850, drive: 2.6, mech: 'none', dur: 0.95 },
-  thumper:     { crack: 900, crackLvl: 0.3, thump: [95, 40, 0.18], thumpLvl: 1.0, bark: 450, barkQ: 0.8, barkDecay: 0.12, barkLvl: 0.6, boom: 400, boomDecay: 0.15, boomLvl: 0.7, tail: 0.4, tailLvl: 0.2, tailLp: 500, drive: 2, mech: 'thunk', dur: 0.6 },
-  disruptor:   { crack: 1800, crackLvl: 0.5, thump: [90, 28, 0.35], thumpLvl: 1.0, bark: 700, barkQ: 2, barkDecay: 0.25, barkLvl: 0.5, boom: 500, boomDecay: 0.3, boomLvl: 0.6, tail: 1.0, tailLvl: 0.35, tailLp: 1200, drive: 2.5, mech: 'arc', dur: 1.3 },
+  thumper:     { crack: 900, crackLvl: 0.5, thump: [95, 40, 0.18], thumpLvl: 1.0, bark: 520, barkQ: 0.8, barkDecay: 0.14, barkLvl: 0.9, boom: 400, boomDecay: 0.15, boomLvl: 0.7, tail: 0.4, tailLvl: 0.2, tailLp: 500, drive: 2, mech: 'thunk', dur: 0.6 },
+  disruptor:   { crack: 1800, crackLvl: 0.6, thump: [90, 28, 0.35], thumpLvl: 0.8, bark: 760, barkQ: 1.4, barkDecay: 0.25, barkLvl: 0.8, boom: 500, boomDecay: 0.3, boomLvl: 0.6, tail: 1.0, tailLvl: 0.35, tailLp: 1200, drive: 2.5, mech: 'arc', dur: 1.3 },
 };
 
 /** Render one gunshot variation. */
@@ -55,19 +55,26 @@ export function renderGunshot(id: string, upgraded: boolean, variation: number):
     chain(pre, drive, post, hp, out);
 
     // 1. transient crack — very short, band-limited
-    burst(ctx, pre, t, 'bandpass', p.crack * v(1), 0.8, 0.012, p.crackLvl * 0.9);
+    burst(ctx, pre, t, 'bandpass', p.crack * v(1), 0.8, 0.012, p.crackLvl * 1.1);
     burst(ctx, pre, t, 'highpass', 1800, 0.7, 0.006, p.crackLvl * 0.4);
     // 2. body thump — sine with fast pitch drop
-    thud(ctx, pre, t, p.thump[0] * v(2), p.thump[1], p.thump[2], p.thumpLvl);
+    // the sub thump is kept for headphones, but its harmonics (300–900 Hz) carry the weight on phone speakers
+    const low = gain(ctx, 1);
+    chain(low, gain(ctx, 0.22), pre);
+    chain(low, shaper(ctx, 7), filt(ctx, 'highpass', 220, 0.7), filt(ctx, 'lowpass', 1300, 0.7), gain(ctx, 1.3), pre);
+    thud(ctx, low, t, p.thump[0] * v(2), p.thump[1], p.thump[2], p.thumpLvl);
     // 3. mid bark
-    const bark = burst(ctx, pre, t, 'bandpass', p.bark * v(3), p.barkQ, p.barkDecay, p.barkLvl, 'pink');
+    const bark = burst(ctx, pre, t, 'bandpass', p.bark * v(3), p.barkQ, p.barkDecay * 1.8, p.barkLvl * 2.8, 'pink');
+    burst(ctx, pre, t, 'bandpass', Math.min(2600, p.crack * 0.75), 1.2, 0.035, p.crackLvl * 0.9, 'pink');
+    // chesty mid body that small speakers reproduce well
+    burst(ctx, pre, t, 'bandpass', 520 * v(4), 0.8, p.barkDecay * 2.6, p.barkLvl * 1.8, 'pink');
     sweep(bark.f.frequency, t, p.bark * v(3) * 1.3, p.bark * 0.6, p.barkDecay);
     // low boom body (noise lowpassed)
-    const boom = burst(ctx, pre, t, 'lowpass', p.boom, 0.9, p.boomDecay, p.boomLvl, 'brown');
+    const boom = burst(ctx, low, t, 'lowpass', p.boom, 0.9, p.boomDecay, p.boomLvl * 0.6, 'brown');
     sweep(boom.f.frequency, t, p.boom * 1.5, p.boom * 0.4, p.boomDecay);
     if (upgraded) {
       // added sub weight + a short electric sizzle tied to the overcharge
-      thud(ctx, pre, t, 70, 28, p.thump[2] * 1.6, 0.8);
+      thud(ctx, low, t, 70, 28, p.thump[2] * 1.6, 0.8);
       const z = burst(ctx, pre, t + 0.01, 'bandpass', 1300, 3, 0.15, 0.18, 'white');
       const lfo = osc(ctx, 'sine', 70, t, 0.2);
       const lg = gain(ctx, 600);
@@ -75,10 +82,10 @@ export function renderGunshot(id: string, upgraded: boolean, variation: number):
       lg.connect(z.f.frequency);
     }
     // 5. tail — distant low-passed echo with slow decay
-    const tailF = filt(ctx, 'lowpass', p.tailLp, 0.6);
+    const tailF = filt(ctx, 'lowpass', p.tailLp * 1.7, 0.6);
     const tailG = gain(ctx, 0);
     perc(tailG.gain, t + 0.02, p.tailLvl, 0.03, p.tail);
-    chain(noiseSrc(ctx, 'brown', t, p.tail + 0.2), tailF, tailG, out);
+    chain(noiseSrc(ctx, 'pink', t, p.tail + 0.2), tailF, tailG, out);
     const echo = ctx.createDelay(1);
     echo.delayTime.value = 0.11 + (variation % 3) * 0.02;
     const echoG = gain(ctx, 0.22);
@@ -238,8 +245,8 @@ export function renderMech(kind: MechSound, variation: number): Promise<AudioBuf
         thud(ctx, out, t + 0.05, 220, 110, 0.03, 0.15);
         break;
       case 'casing':
-        ping(ctx, out, t, 3100 * r(12), 22, 0.4, 0.09);
-        ping(ctx, out, t + 0.07 + variation * 0.01, 3600 * r(13), 25, 0.2, 0.05);
+        ping(ctx, out, t, 2300 * r(12), 22, 0.4, 0.09);
+        ping(ctx, out, t + 0.07 + variation * 0.01, 2900 * r(13), 25, 0.2, 0.05);
         break;
       case 'shellCasing':
         thud(ctx, out, t, 400, 200, 0.03, 0.3);
@@ -272,12 +279,14 @@ export function renderImpact(kind: ImpactSound, variation: number): Promise<Audi
     const t = 0.002;
     switch (kind) {
       case 'flesh':
-        thud(ctx, out, t, 180 * r(1), 60, 0.07, 0.8);
+        thud(ctx, out, t, 180 * r(1), 60, 0.07, 0.45);
+        burst(ctx, out, t, 'bandpass', 1050 * r(1), 1.0, 0.05, 0.55, 'pink');
         burst(ctx, out, t, 'bandpass', 650 * r(2), 1.2, 0.06, 0.5, 'pink');
         burst(ctx, out, t + 0.01, 'lowpass', 1200, 0.7, 0.1, 0.25, 'brown');
         break;
       case 'head':
-        thud(ctx, out, t, 220, 70, 0.06, 0.8);
+        thud(ctx, out, t, 220, 70, 0.06, 0.45);
+        burst(ctx, out, t, 'bandpass', 1300 * r(3), 1.2, 0.04, 0.6, 'pink');
         burst(ctx, out, t, 'bandpass', 950 * r(3), 1.5, 0.05, 0.6, 'pink');
         burst(ctx, out, t + 0.005, 'bandpass', 2000, 2, 0.03, 0.25);
         burst(ctx, out, t + 0.02, 'lowpass', 900, 0.7, 0.15, 0.3, 'brown');
@@ -329,13 +338,15 @@ export function renderImpact(kind: ImpactSound, variation: number): Promise<Audi
         break;
       }
       case 'bodyfall':
-        thud(ctx, out, t, 140 * r(11), 45, 0.15, 0.9);
+        thud(ctx, out, t, 140 * r(11), 45, 0.15, 0.6);
+        burst(ctx, out, t, 'bandpass', 700, 1, 0.12, 0.45, 'pink');
         burst(ctx, out, t, 'lowpass', 600, 0.7, 0.2, 0.5, 'brown');
         thud(ctx, out, t + 0.12, 110, 40, 0.1, 0.5);
         burst(ctx, out, t + 0.12, 'bandpass', 500, 1, 0.1, 0.25, 'pink');
         break;
       case 'meleeHit':
-        thud(ctx, out, t, 200, 60, 0.08, 1.0);
+        thud(ctx, out, t, 200, 60, 0.08, 0.55);
+        burst(ctx, out, t, 'bandpass', 900, 1.0, 0.07, 0.6, 'pink');
         burst(ctx, out, t, 'bandpass', 700, 1, 0.08, 0.7, 'pink');
         burst(ctx, out, t + 0.01, 'bandpass', 1500 * r(12), 2, 0.05, 0.3);
         break;

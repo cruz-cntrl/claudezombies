@@ -253,7 +253,23 @@ export class ZombieManager {
             z.tearT = 0;
           } else z.phase += dt * 0.5;
           g.collideCircle(z, r, (i, j) => g.kindAt(i, j) !== K.OUTSIDE);
-          if (z.stateT > 25) this.respawnElsewhere(z);
+          // waiting in a queue: try another free window in an unlocked area
+          if (queue && z.stateT > 7 + (z.idx % 5)) {
+            let best: WindowVisual | null = null, bd = 1e9;
+            for (const w2 of this.world.windows) {
+              if (w2 === w || !this.world.zoneActive[w2.cell.zone]) continue;
+              const o = this.windowOccupant.get(w2);
+              if (o && o.active) continue;
+              const d2 = Math.hypot(w2.spawn.x - z.x, w2.spawn.z - z.z);
+              if (d2 < bd) { bd = d2; best = w2; }
+            }
+            if (best) {
+              if (bd > 14) { z.x = best.spawn.x; z.z = best.spawn.z; } // out of sight: shortcut around the building
+              z.window = best;
+            }
+            z.stateT = 0;
+          }
+          if (z.stateT > 45) this.respawnElsewhere(z);
           break;
         }
         case 'window': {
@@ -397,7 +413,11 @@ export class ZombieManager {
   }
 
   /** Teleport a stuck zombie back to a fresh window spawn. */
+  stuckRespawns = 0;
+  stuckLog: string[] = [];
   respawnElsewhere(z: Zombie) {
+    this.stuckRespawns++;
+    if (this.stuckLog.length < 30) this.stuckLog.push(`${z.type}/${z.state} at ${z.x.toFixed(1)},${z.z.toFixed(1)} flow=${this.world.flow.distanceAt(z.x, z.z)} t=${z.stateT.toFixed(1)}`);
     if (z.window && this.windowOccupant.get(z.window) === z) this.windowOccupant.delete(z.window);
     const ws = this.world.windows.filter((w) => this.world.zoneActive[w.cell.zone]);
     if (!ws.length || z.type !== 'zombie') { z.stuckT = 0; z.bestDist = 1e9; return; }

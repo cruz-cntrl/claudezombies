@@ -1,4 +1,4 @@
-import { RATE, render, kick, snare, hat, dirtyBass, guitar, lead, strings, staticBurst, gain, chain, filt } from './compose';
+import { RATE, render, kick, snare, hat, dirtyBass, guitar, lead, strings, staticBurst, gain, chain, filt, bassAmp, guitarAmp, leadAmp } from './compose';
 
 /**
  * Easter-egg songs: original gritty dark-rock tracks (~2 min) built from distorted
@@ -22,7 +22,7 @@ const SONGS: Record<string, SongSpec> = {
     verseChords: [0, 0, 3, 5, 0, 0, 7, 5],
     chorusChords: [0, 8, 3, 10, 0, 8, 7, 7],
     melody: [[7, 0, 2], [5, 2, 1], [3, 3, 1], [5, 4, 3], [0, 8, 2], [3, 10, 2], [7, 12, 4], [10, 16, 2], [8, 18, 2], [7, 20, 4], [5, 24, 2], [3, 26, 1], [5, 27, 1], [7, 28, 4]],
-    sections: ['intro', 'verse', 'verse', 'chorus', 'bridge', 'verse', 'chorus', 'chorus', 'outro'],
+    sections: ['intro', 'verse', 'chorus', 'verse', 'bridge', 'chorus', 'outro'],
   },
   // "Cut the Signal" — A minor, driving
   station: {
@@ -51,7 +51,9 @@ export function renderSong(id: string): Promise<AudioBuffer> {
     glue.threshold.value = -14; glue.ratio.value = 3; glue.attack.value = 0.01; glue.release.value = 0.2;
     chain(master, glue, out);
     const drums = gain(ctx, 0.9), bass = gain(ctx, 0.55), gtr = gain(ctx, 0.42), ld = gain(ctx, 0.32), pad = gain(ctx, 0.35);
-    for (const b of [drums, bass, gtr, ld, pad]) b.connect(master);
+    drums.connect(master); pad.connect(master);
+    const bassIn = bassAmp(ctx, bass), gtrIn = guitarAmp(ctx, gtr), ldIn = leadAmp(ctx, ld);
+    bass.connect(master); gtr.connect(master); ld.connect(master);
     // room for the drums
     const room = ctx.createConvolver();
     const ir = new AudioBuffer({ length: Math.floor(RATE * 0.6), sampleRate: RATE, numberOfChannels: 2 });
@@ -83,19 +85,19 @@ export function renderSong(id: string): Promise<AudioBuffer> {
           for (let k = 0; k < 8; k++) {
             const off = s.riff[k];
             if (off < 0) continue;
-            dirtyBass(ctx, bass, tb + k * beat * 0.5, root + (sec === 'verse' ? off : 0), beat * 0.45, 0.8);
+            dirtyBass(ctx, bassIn, tb + k * beat * 0.5, root + (sec === 'verse' ? off : 0), beat * 0.45, 0.8);
           }
         }
         // guitar
-        if (sec === 'verse') for (let k = 0; k < 8; k++) guitar(ctx, gtr, tb + k * beat * 0.5, root + 12, beat * 0.4, 0.5, k % 4 !== 0);
-        if (sec === 'chorus' || sec === 'outro') { guitar(ctx, gtr, tb, root + 12, bar * 0.98, 0.55); }
-        if (sec === 'bridge') { if (b % 2 === 0) guitar(ctx, gtr, tb, root + 12, bar * 2, 0.4); }
+        if (sec === 'verse') for (let k = 0; k < 8; k++) guitar(ctx, gtrIn, tb + k * beat * 0.5, root + 12, beat * 0.4, 0.5, k % 4 !== 0);
+        if (sec === 'chorus' || sec === 'outro') { guitar(ctx, gtrIn, tb, root + 12, bar * 0.98, 0.55); }
+        if (sec === 'bridge') { if (b % 2 === 0) guitar(ctx, gtrIn, tb, root + 12, bar * 2, 0.4); }
         // pads under the bridge + chorus
         if (sec === 'bridge' || sec === 'chorus') strings(ctx, pad, tb, [root + 24, root + 31, root + 36], bar, 0.4, 1200, 0.3);
       }
       // lead melody over choruses and the bridge
       if (sec === 'chorus' || sec === 'bridge') {
-        for (const [n, st, len] of s.melody) lead(ctx, ld, t0 + st * beat, s.key + 24 + n + (sec === 'bridge' ? -5 : 0), len * beat * 0.95, 0.6);
+        for (const [n, st, len] of s.melody) lead(ctx, ldIn, t0 + st * beat, s.key + 24 + n + (sec === 'bridge' ? -5 : 0), len * beat * 0.95, 0.6);
       }
       if (sec === 'intro') staticBurst(ctx, master, t0, 2.5, 0.25);
       t0 += 8 * bar;

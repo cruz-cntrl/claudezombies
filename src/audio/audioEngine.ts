@@ -81,6 +81,19 @@ export class AudioEngine {
     limiter.threshold.value = -2; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.1;
     this.master = ctx.createGain();
     this.master.connect(comp); comp.connect(limiter); limiter.connect(ctx.destination);
+    // Phone speakers can't reproduce < ~250 Hz. On touch devices, add a subtle "psychoacoustic
+    // bass" path: isolate the lows, generate harmonics with soft clipping, keep only 200–700 Hz.
+    if (matchMedia('(pointer: coarse)').matches) {
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 150;
+      const ws = ctx.createWaveShaper();
+      const c = new Float32Array(1024);
+      for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; c[i] = Math.tanh(x * 6) / Math.tanh(6); }
+      ws.curve = c;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 200;
+      const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass'; lp2.frequency.value = 700;
+      const g = ctx.createGain(); g.gain.value = 0.22;
+      this.master.connect(lp); lp.connect(ws); ws.connect(hp); hp.connect(lp2); lp2.connect(g); g.connect(comp);
+    }
     this.duckGain = ctx.createGain();
     this.duckGain.connect(this.master);
     this.busses = {
@@ -162,6 +175,9 @@ export class AudioEngine {
   }
 
   has(name: string) { return this.bank.has(name); }
+  /** Debug / analysis access to rendered variations. */
+  buffers(name: string) { return this.bank.get(name) ?? null; }
+  registeredNames() { return [...this.registry.keys()]; }
 
   async ensure(name: string): Promise<void> {
     if (this.bank.has(name)) return;

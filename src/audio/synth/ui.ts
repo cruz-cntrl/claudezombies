@@ -1,4 +1,4 @@
-import { burst, chain, filt, gain, noiseSrc, osc, perc, ping, render, sweep, thud, type Ctx } from './dsp';
+import { burst, chain, filt, gain, noiseSrc, osc, perc, ping, render, shaper, sweep, thud, type Ctx } from './dsp';
 import { voice } from './zombies';
 
 /** Warm FM electric-piano note (tine-ish), slightly detuned pair — the "old jukebox" voice. */
@@ -175,9 +175,15 @@ export function renderUi(kind: UiSound, v: number): Promise<AudioBuffer> {
         thud(ctx, out, t + 1.4, 300, 140, 0.05, 0.4);
         break;
       }
-      case 'heartbeat':
-        thud(ctx, out, t, 70, 40, 0.12, 1);
-        thud(ctx, out, t + 0.22, 62, 38, 0.15, 0.8);
+      case 'heartbeat': {
+        // harmonics make the beat audible on phone speakers
+        const hb = gain(ctx, 1);
+        chain(hb, gain(ctx, 0.6), out);
+        chain(hb, shaper(ctx, 8), filt(ctx, 'bandpass', 260, 0.7), gain(ctx, 0.7), out);
+        thud(ctx, hb, t, 70, 40, 0.12, 1);
+        thud(ctx, hb, t + 0.22, 62, 38, 0.15, 0.8);
+        break;
+      }
         break;
       case 'hurt':
         voice(ctx, out, t, { dur: 0.35, f0: 115 + r(1) * 20, f0End: 95, vowels: ['e', 'er'], breath: 0.6, wobble: 6, trem: 0.2, tremRate: 10, attack: 0.01, release: 0.2, level: 0.9, drive: 3 }, v);
@@ -278,8 +284,9 @@ export function renderUi(kind: UiSound, v: number): Promise<AudioBuffer> {
         ping(ctx, out, t, 1200 + r(4) * 400, 8, 0.3, 0.05);
         break;
       case 'step': {
-        thud(ctx, out, t, 90 + r(5) * 30, 50, 0.05, 0.5);
-        burst(ctx, out, t, 'bandpass', 500 + r(6) * 400, 1, 0.06, 0.4, 'pink');
+        thud(ctx, out, t, 90 + r(5) * 30, 50, 0.05, 0.3);
+        burst(ctx, out, t, 'bandpass', 500 + r(6) * 400, 1, 0.06, 0.45, 'pink');
+        burst(ctx, out, t + 0.01, 'bandpass', 1400 + r(7) * 500, 1.5, 0.035, 0.22, 'pink');
         break;
       }
     }

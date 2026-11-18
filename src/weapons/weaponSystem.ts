@@ -323,6 +323,9 @@ export class WeaponSystem {
       }
     }
 
+    // --- auto-reload when the mag runs dry (mobile-friendly)
+    if (this.state === 'ready' && w.mag === 0 && w.reserve > 0 && this.cooldown <= 0 && this.actionT < 0) this.startReload();
+
     // --- action cycle
     if (this.actionT >= 0) { this.actionT += dt / this.actionDur; if (this.actionT >= 1) this.actionT = -1; }
 
@@ -397,7 +400,7 @@ export class WeaponSystem {
     this.bloom = Math.min(6, this.bloom + 0.35 + st.recoilUp * 0.15);
     this.vm.fire(st.kick);
     // sound
-    audio.play(w.soundId, { bus: 'sfx', priority: 9, vol: 0.85, reverb: 0.35 });
+    audio.play(w.soundId, { bus: 'sfx', priority: 9, vol: 1.0, reverb: 0.35 });
     if (w.def.reloadStyle === 'clip' && w.mag === 0) audio.play('mech_clipPing', { bus: 'sfx', vol: 0.8, delay: 0.05 });
     // pump / bolt cycle
     if ((w.def.reloadStyle === 'pump' || (w.def.reloadStyle === 'bolt')) && w.mag > 0) { this.actionT = 0; this.actionDur = Math.min(0.9, this.cooldown * 0.9); }

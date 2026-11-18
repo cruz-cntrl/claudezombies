@@ -1,4 +1,4 @@
-import { burst, chain, filt, gain, noiseSrc, osc, perc, ping, render, sweep, thud } from './dsp';
+import { burst, chain, filt, gain, noiseSrc, osc, perc, ping, render, sweep, thud, normalizePeak } from './dsp';
 
 /** Seamless loop: renders dur + xf seconds and folds the overhang into the head with an equal-power crossfade. */
 export function makeLoop(buf: AudioBuffer, xf: number): AudioBuffer {
@@ -101,7 +101,7 @@ export async function renderAmbience(kind: AmbSound, v: number): Promise<AudioBu
         break;
       case 'steam': {
         const g = gain(ctx, 0); perc(g.gain, 0.01, 0.6, 0.3, 2.0);
-        chain(noiseSrc(ctx, 'white', 0, dur), filt(ctx, 'bandpass', 3000, 0.7), filt(ctx, 'lowpass', 6000), g, out);
+        chain(noiseSrc(ctx, 'pink', 0, dur), filt(ctx, 'bandpass', 1500, 0.6), filt(ctx, 'lowpass', 3500), g, out);
         break;
       }
       case 'distant': {
@@ -113,5 +113,8 @@ export async function renderAmbience(kind: AmbSound, v: number): Promise<AudioBu
       }
     }
   }, isLoop ? 2 : 1, 32000);
-  return isLoop ? makeLoop(buf, 1) : buf;
+  if (!isLoop) return buf;
+  const loop = makeLoop(buf, 1);
+  normalizePeak(loop, 0.85);
+  return loop;
 }

@@ -403,7 +403,7 @@ if (params.get('safe') === '1') document.documentElement.classList.add('sim-safe
 computeLayout();
 const app = new App();
 (window as any).app = app;
-if (DEBUG) (window as any).save = save;
+if (DEBUG) { (window as any).save = save; (window as any).audio = audio; }
 app.boot().catch((e) => {
   console.error(e);
   document.getElementById('screens')!.innerHTML = `<div class="screen solid" style="align-items:center;justify-content:center"><div class="h2">Failed to start</div><div class="txt">${String(e)}</div></div>`;
