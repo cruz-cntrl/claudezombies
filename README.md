@@ -18,7 +18,7 @@ npm run preview    # serve dist/ on http://localhost:4173
 
 Useful URL flags: `?debug=1` (FPS/draw-call readout, outlines the reserved Netlify zone in red),
 `?safe=1` (simulate iPhone 16 landscape safe-area insets), `?autostart=1&map=station&difficulty=hardened`
-(skip menus), `?quality=low|medium|high`, `?screen=menu`, `?tutorial=1`.
+(skip menus), `?quality=low|medium|high`, `?screen=menu`, `?tutorial=1`, `?cutscenes=1` (story scenes are off in autostart test mode unless set).
 
 Tests and checks (need `npx playwright install webkit` once, and `npm run preview` running):
 
@@ -58,6 +58,7 @@ All numbers live in `src/config/` — no logic changes needed:
 | `perks.ts` | Halcyon Tonic prices, colours, effects (`PERK_TUNING`), max perks. |
 | `enemies.ts` | Zombie speeds, attack range/wind-up/damage, chip crit multiplier, hound & Brute stats, boss HP, power-up drop chance & timers. |
 | `lore.ts` | Lore note text, radio frequencies. |
+| `story.ts` | Cutscene text: map prologues, the line each room speaks when unlocked, boss reveal lines. |
 | `../entities/outfits.ts` | Zombie looks: outfits, accessory chances and colours, body builds, how common each is per map. |
 
 Map layouts are authored in `src/world/maps/*.ts` with a small `LayoutBuilder` (rooms, doors, windows and named

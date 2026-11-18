@@ -13,6 +13,8 @@ export interface Settings {
   leftHanded: boolean;
   /** Upper part of the movement side: drag to look, tap to toggle ADS */
   leftLookPad: boolean;
+  /** Story cutscenes (prologue, room unlocks, boss reveals) */
+  cutscenes: boolean;
   quality: Quality;
   showFps: boolean;
   master: number;
@@ -33,6 +35,7 @@ export const defaultSettings: Settings = {
   buttonOpacity: 0.7,
   leftHanded: false,
   leftLookPad: true,
+  cutscenes: true,
   quality: 'medium',
   showFps: false,
   master: 0.9,
@@ -49,6 +52,8 @@ interface SaveData {
   scores: Record<string, { round: number; kills: number }>; // key `${map}:${difficulty}`
   notes: string[];
   eeDone: string[];
+  /** one-time story beats already shown (e.g. 'prologue:ravenmoor') */
+  seen: string[];
 }
 
 function load(): SaveData {
@@ -61,10 +66,11 @@ function load(): SaveData {
         scores: d.scores ?? {},
         notes: d.notes ?? [],
         eeDone: d.eeDone ?? [],
+        seen: d.seen ?? [],
       };
     }
   } catch { /* private mode / corrupted */ }
-  return { settings: { ...defaultSettings }, scores: {}, notes: [], eeDone: [] };
+  return { settings: { ...defaultSettings }, scores: {}, notes: [], eeDone: [], seen: [] };
 }
 
 export const save: SaveData = load();

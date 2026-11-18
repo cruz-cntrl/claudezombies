@@ -323,6 +323,7 @@ export class EasterEggs {
     const boss = this.mapId === 'station' ? new MotherTransmitter(g, x, z) : new Warden(g, x, z);
     boss.onDefeated = () => this.victory();
     g.boss = boss;
+    g.cutscenes.playBoss(boss);
     this.progress();
   }
 

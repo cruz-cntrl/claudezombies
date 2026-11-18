@@ -297,3 +297,23 @@ html, body {
 .dial-readout { font-family: var(--font-display); font-size: 28px; color: var(--gold); letter-spacing: 0.1em; }
 .keypad { display: grid; grid-template-columns: repeat(3, 56px); gap: 6px; }
 .keypad button { height: 48px; font-family: var(--font-display); font-size: 20px; background: #2a2622; color: var(--bone); border: 2px solid #5a5048; }
+
+/* ---------- cutscenes ---------- */
+.cs-root { position: absolute; inset: 0; z-index: 35; pointer-events: none; display: none; }
+.cs-root.on { display: block; }
+.cs-dark { position: absolute; inset: 0; background: #050403; opacity: 0; transition: opacity 1.2s; }
+.cs-bar { position: absolute; left: 0; right: 0; height: 0; background: #000; animation: csbar 0.6s ease-out forwards; }
+.cs-bar.top { top: 0; }
+.cs-bar.bottom { bottom: 0; }
+@keyframes csbar { to { height: 11vh; } }
+.cs-card { position: absolute; inset: 0; }
+.cs-prologue { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, 74vw); text-align: center; }
+.cs-prologue .cs-text { font-family: var(--font-type); font-size: clamp(17px, 5.6vh, 26px); color: var(--bone); line-height: 1.35; text-shadow: 0 2px 8px #000; min-height: 1.3em; }
+.cs-prologue .cs-sub { font-family: var(--font-type); font-size: clamp(13px, 4vh, 17px); color: var(--blood-hi); margin-top: 10px; min-height: 1.2em; text-shadow: 0 2px 6px #000; }
+.cs-title { position: absolute; left: calc(var(--sal) + 6vw); top: 17vh; text-align: left; }
+.cs-title .cs-text { font-family: var(--font-display); font-size: clamp(22px, 8vh, 40px); letter-spacing: 0.14em; color: var(--bone); text-shadow: 3px 3px 0 #000, 0 0 18px rgba(0,0,0,0.9); min-height: 1.1em; }
+.cs-title .cs-sub { font-family: var(--font-display); font-size: clamp(13px, 4vh, 18px); letter-spacing: 0.2em; color: var(--blood-hi); text-shadow: 2px 2px 0 #000; min-height: 1.1em; }
+.cs-caption { position: absolute; left: 50%; bottom: calc(var(--reserved-h) + var(--sab) + 12px); transform: translateX(-50%); width: min(640px, calc(100vw - 2 * (var(--reserved-w) + var(--sar)))); text-align: center; }
+.cs-caption .cs-text { font-family: var(--font-type); font-size: clamp(13px, 4.2vh, 17px); color: var(--bone); background: rgba(0,0,0,0.55); padding: 6px 12px; display: inline-block; text-shadow: 1px 1px 0 #000; min-height: 1.2em; }
+.cs-skip { position: absolute; right: calc(var(--sar) + 14px); top: calc(var(--sat) + 10px); pointer-events: auto; font-family: var(--font-display); font-size: 14px; letter-spacing: 0.15em; color: var(--bone); background: rgba(0,0,0,0.55); border: 1px solid rgba(233,225,204,0.4); padding: 10px 16px; min-height: 44px; min-width: 88px; }
+.cs-skip:active { background: var(--blood); }

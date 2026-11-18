@@ -82,3 +82,10 @@ Choices made where the brief was ambiguous, with the reasoning.
 35. **Left look pad.** The upper ~46 % of the movement side is an invisible second look pad: drag to turn the
     camera (so the other thumb can stay on FIRE), quick tap (< 280 ms, < 14 px) to toggle aim-down-sights. The
     movement stick still starts anywhere below it. Mirrored for left-handed play; can be switched off in Settings.
+36. **Cutscenes freeze the world.** While a scene plays the simulation doesn't advance (no spawns, attacks or round
+    timer), the player is invulnerable, and they get 1.5 s of grace afterwards. Every scene is skippable (button,
+    Space/Enter) and the whole system can be turned off in Settings → Story.
+37. **Scene set:** a prologue the first time you play each map (replayable via Settings → "Show prologues again"),
+    a short sweep of the starting room every game that lands in the player's eyes, a fly-in the first time a door /
+    debris / the secret bookshelf opens into a new room, and a reveal for each boss. Story text lives in
+    `config/story.ts` and echoes the lore notes.

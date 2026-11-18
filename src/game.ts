@@ -27,6 +27,7 @@ import { disposeTree } from './core/dispose';
 import { LIGHTING } from './config/lighting';
 import { AmbientFx } from './systems/ambientFx';
 import { Pickups } from './systems/pickups';
+import { Cutscenes } from './systems/cutscenes';
 import { EasterEggs } from './systems/easterEggs';
 import type { Boss } from './entities/bosses/boss';
 
@@ -52,6 +53,9 @@ export class Game {
   readonly aim: AimAssist;
   readonly ambient: AmbientFx;
   readonly pickups: Pickups;
+  readonly cutscenes: Cutscenes;
+  /** told when a cutscene starts / ends (App hides controls, tutorial) */
+  onCutscene: ((active: boolean) => void) | null = null;
   over = false;
   onGameOver: (() => void) | null = null;
   onReadNote: ((id: string, digit: string | null) => void) | null = null;
@@ -153,6 +157,7 @@ export class Game {
     }
     this.objects = new MapObjects(this);
     this.ee = new EasterEggs(this);
+    this.cutscenes = new Cutscenes(this);
     this.fogBase.setHex(world.def.fogColor);
 
     this.weapons.give('warden');
@@ -273,6 +278,17 @@ export class Game {
   // ---------------------------------------------------------------- loop
   update(dt: number) {
     this.time += dt;
+    // during a cutscene the world holds still: no spawns, no attacks, no damage
+    if (this.cutscenes.active) {
+      this.invuln = Math.max(this.invuln, 1.5);
+      this.input.consumeLook();
+      this.cutscenes.update(dt);
+      if (this.cutscenes.active?.boss) this.boss?.update(dt);
+      this.zombies.pose(dt);
+      this.barriers.update(dt);
+      this.touch.setInteract(null);
+      return;
+    }
     const p = this.player;
     if (!this.over) p.stats.time += dt;
     this.invuln = Math.max(0, this.invuln - dt);
@@ -338,8 +354,11 @@ export class Game {
     const cam = this.r.camera;
     const p = this.player;
     p.applyCamera(cam, alpha, this.time);
+    const inScene = !!this.cutscenes.active;
+    if (inScene) this.cutscenes.applyCamera(cam);
+    this.r.vmVisible = !inScene;
     const ws = this.weapons;
-    const zoom = 1 + ((ws.current?.stats.adsZoom ?? 1) - 1) * ws.ads;
+    const zoom = inScene ? 1 : 1 + ((ws.current?.stats.adsZoom ?? 1) - 1) * ws.ads;
     cam.fov = this.r.baseFov / zoom;
     cam.updateProjectionMatrix();
     this.r.vmCamera.fov = 58 - ws.ads * 8;
@@ -402,6 +421,8 @@ export class Game {
     for (const u of this.unsub) u();
     this.hud.dispose();
     this.objects.dispose();
+    this.cutscenes.dispose();
+    this.r.vmVisible = true;
     this.ee?.dispose();
     this.zombies.stopAudio();
     audio.stop(this.ambVoice, 0.5);

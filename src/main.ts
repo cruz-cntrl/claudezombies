@@ -121,6 +121,8 @@ export class App {
     ]);
     if (params.get('autostart') === '1') {
       save.settings.tutorialDone = params.get('tutorial') !== '1';
+      // test harness: story scenes only when explicitly requested
+      if (params.get('cutscenes') !== '1') save.settings.cutscenes = false;
       await this.startGame(first, (params.get('difficulty') as DifficultyId) || 'normal');
       return;
     }
@@ -230,6 +232,13 @@ export class App {
     this.game.onGameOver = () => this.showGameOver();
     this.game.onReadNote = (id, digit) => this.readNote(id, digit);
     this.game.onModal = (el) => this.showModal(el);
+    this.game.onCutscene = (on) => {
+      if (this.state !== 'playing') return;
+      this.touch.setVisible(!on);
+      this.game?.hud.setVisible(!on);
+      this.tutorial?.setVisible(!on);
+      if (on) { this.input.reset(); this.kbm.exitLock(); }
+    };
     audio.unlock();
     audio.background();
     this.music.startGame(this.game);
@@ -241,6 +250,7 @@ export class App {
     if (!save.settings.tutorialDone) this.tutorial = new Tutorial(this.game);
     computeLayout();
     this.game.hud.layout();
+    if (params.get('cutscenes') !== '0' && !(params.get('autostart') === '1' && params.get('cutscenes') !== '1')) this.game.cutscenes.playIntro();
   }
 
   pause() {
@@ -261,8 +271,9 @@ export class App {
     this.state = 'playing';
     this.input.reset();
     this.input.enabled = true;
-    this.touch.setVisible(true);
-    this.tutorial?.setVisible(true);
+    const scene = !!this.game?.cutscenes.active;
+    this.touch.setVisible(!scene);
+    this.tutorial?.setVisible(!scene);
     audio.duck(0);
   }
 
@@ -357,7 +368,7 @@ export class App {
     }
     if (this.state === 'playing' && this.game) {
       this.game.update(dt);
-      this.tutorial?.update(dt);
+      if (!this.game.cutscenes.active) this.tutorial?.update(dt);
     }
     this.music.update(dt, this.state === 'playing' ? this.game : null);
   }
