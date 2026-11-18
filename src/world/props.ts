@@ -381,6 +381,14 @@ export const lightCage: Build = (b, base) => {
   b.add('plain:iron', torus(0.08, 0.006, 3, 12), at(base, 0, -0.08, 0, 0, Math.PI / 2), 0x2a2a2a);
 };
 
+export const lampPost: Build = (b, base) => {
+  b.add('plain:iron', cyl(0.05, 0.08, 2.9, 8), at(base, 0, 1.45, 0), 0x1e1e1c);
+  b.add('plain:iron', cyl(0.14, 0.18, 0.2, 8), at(base, 0, 0.1, 0), 0x1e1e1c);
+  b.add('plain:iron', box(0.04, 0.04, 0.5), at(base, 0, 2.95, 0.2), 0x1e1e1c);
+  b.add('plain:iron', cyl(0.12, 0.06, 0.12, 6), at(base, 0, 3.08, 0), 0x1e1e1c);
+  b.add('plain:glass', cyl(0.09, 0.11, 0.26, 6), at(base, 0, 2.9, 0), 0x6a6040);
+};
+
 export const surgicalLamp: Build = (b, base) => {
   b.add('plain:chrome', cyl(0.02, 0.02, 0.8, 6), at(base, 0, 0.4, 0), 0x888888);
   b.add('plain:paint', lathe([[0.02, 0.1], [0.3, 0.0], [0.45, -0.12], [0.42, -0.14], [0.0, -0.05]], 18), at(base, 0, -0.05, 0), PAINT_WHITE);

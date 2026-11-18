@@ -19,6 +19,9 @@ export class MatLib {
     return 1;
   }
 
+  /** Register a custom baked material (e.g. a poster texture) under a key. */
+  register(key: string, m: THREE.Material) { this.mats.set(key, m); }
+
   get(key: string): THREE.Material {
     let m = this.mats.get(key);
     if (m) return m;

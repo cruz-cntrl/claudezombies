@@ -145,7 +145,7 @@ export class MapObjects {
       if (!vis) continue;
       g.interact.add({
         x: vis.center.x, z: vis.center.z, r: 2.3, hold: ECONOMY.holdBuy,
-        label: () => (vis.open ? null : this.buyLabel(`Hold to ${dd.kind === 'debris' ? 'clear debris' : 'open gate'}`, dd.cost)),
+        label: () => (vis.open || dd.kind === 'secret' ? null : this.buyLabel(`Hold to ${dd.kind === 'debris' ? 'clear debris' : 'open gate'}`, dd.cost)),
         can: () => !vis.open && this.eco.can(dd.cost),
         onDenied: this.denied,
         use: () => {
@@ -206,7 +206,7 @@ export class MapObjects {
   // ---------------------------------------------------------------- wall-buys
   private setupWallBuy(m: Marker) {
     const g = this.g;
-    const id = g.world.def.markers.b[m.index];
+    const id = m.id ?? g.world.def.markers.b[m.index];
     const def = WEAPONS[id];
     if (!def) return;
     const yaw = m.facing;
@@ -249,7 +249,7 @@ export class MapObjects {
   // ---------------------------------------------------------------- perk machines
   private setupPerk(m: Marker, batch: GeoBatch) {
     const g = this.g;
-    const perk = g.world.def.markers.p[m.index];
+    const perk = (m.id ?? g.world.def.markers.p[m.index]) as PerkId;
     const def = PERKS[perk];
     if (!def) return;
     const yaw = m.facing;
@@ -281,14 +281,7 @@ export class MapObjects {
     sign.position.set(m.i + 0.5 + Math.sin(yaw) * 0.325, 1.76, m.j + 0.5 + Math.cos(yaw) * 0.325);
     sign.rotation.y = yaw;
     this.group.add(sign);
-    // little indicator bulbs
     const lights: THREE.Mesh[] = [];
-    for (let i = 0; i < 3; i++) {
-      const lm = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(def.color) }));
-      lm.position.set(m.i + 0.5 + Math.sin(yaw) * 0.33 + Math.cos(yaw) * (-0.2 + i * 0.2), 1.62, m.j + 0.5 + Math.cos(yaw) * 0.33 - Math.sin(yaw) * (-0.2 + i * 0.2));
-      this.group.add(lm);
-      lights.push(lm);
-    }
     const pos = new THREE.Vector3(m.i + 0.5 + Math.sin(yaw) * 0.9, 0, m.j + 0.5 + Math.cos(yaw) * 0.9);
     this.machines.push({ perk, pos, sign: signMat, light: lights, jingleT: Math.random() * 20 });
     g.interact.add({
@@ -654,7 +647,8 @@ export class MapObjects {
           pm.jingleT = 25 + Math.random() * 20;
           this.jingleVoice = audio.play('ui_perkJingle_' + pm.perk, { pos: { x: pm.pos.x, y: 1.5, z: pm.pos.z }, bus: 'music', vol: 0.55, priority: 4 });
         }
-        for (const l of pm.light) (l.material as THREE.MeshBasicMaterial).color.setScalar(1.5 + Math.sin(this.g.time * 3 + l.id) * 1.2);
+        const flick = Math.random() < 0.02 ? 0.4 : 1;
+        pm.sign.color.setScalar((1.9 + Math.sin(this.g.time * 2.3 + pm.pos.x) * 0.25) * flick);
       }
     }
   }

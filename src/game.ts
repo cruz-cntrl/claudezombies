@@ -22,6 +22,7 @@ import { ECONOMY } from './config/economy';
 import { damp } from './core/math';
 import { MapObjects } from './systems/mapObjects';
 import { AimAssist } from './input/aimAssist';
+import { AmbientFx } from './systems/ambientFx';
 
 /**
  * One play session on one map. Owns the world and all gameplay systems.
@@ -43,6 +44,7 @@ export class Game {
   readonly hud: Hud;
   readonly objects: MapObjects;
   readonly aim: AimAssist;
+  readonly ambient: AmbientFx;
   over = false;
   onGameOver: (() => void) | null = null;
   invuln = 0;
@@ -113,6 +115,8 @@ export class Game {
     this.rounds = new Rounds(this);
     this.hud = new Hud(this);
     this.aim = new AimAssist(this);
+    this.ambient = new AmbientFx(this);
+    r.scene.add(this.ambient.group);
 
     // windows: repair interactables
     for (const w of world.windows) {
@@ -284,6 +288,7 @@ export class Game {
     const f = p.forward(this.tmpV);
     this.playerLamp.position.set(cam.position.x - f.x * 0.6, cam.position.y + 0.35, cam.position.z - f.z * 0.6);
     this.world.update(frameDt, this.time, cam.position, this.powerOn);
+    this.ambient.update(frameDt);
     this.fx.update(frameDt, cam);
     this.fx.setPixelScale(this.r.renderer.domElement.height, cam.fov);
     // viewmodel lighting from the probe grid
@@ -330,7 +335,7 @@ export class Game {
     this.objects.dispose();
     this.zombies.stopAudio();
     audio.stop(this.ambVoice, 0.5);
-    this.r.scene.remove(this.world.group, this.playerLamp, this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group);
+    this.r.scene.remove(this.world.group, this.playerLamp, this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group);
     for (const l of this.zombies.chipLights) this.r.scene.remove(l);
     this.world.setupLightPool(this.r.scene, 0);
     this.world.dispose();

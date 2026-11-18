@@ -38,7 +38,7 @@ export interface ZoneDef {
 export interface DoorDef {
   id: string;       // digit character used in the layout
   cost: number;
-  kind: 'door' | 'debris';
+  kind: 'door' | 'debris' | 'secret';
   label: string;
 }
 
@@ -56,6 +56,8 @@ export interface MapDef {
     b: string[];        // wall-buys (weapon ids)
     e: string[];        // easter egg / special anchors
   };
+  /** Explicit marker ids keyed "x,y" (from LayoutBuilder); preferred over the ordered lists. */
+  markerIds?: Record<string, string>;
   fogColor: number;
   fogDensity: number;
   outsideSurface: Surface;
@@ -79,5 +81,6 @@ export interface MapDef {
  *  'p' perk machine              'b' wall-buy (chalk on adjacent wall)
  *  'c' supply crate spot          'r' Rewirer           's' power switch
  *  'e' easter-egg anchor          'l' extra light        'o' low cover prop (blocks movement, not bullets)
+ *  'q' solid named set-piece (built by the map's decorate hook / easter-egg system)
  */
 export const LEGEND_INFO = true;

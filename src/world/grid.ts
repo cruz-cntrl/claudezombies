@@ -5,7 +5,7 @@ export const enum K {
   VOID = 0, FLOOR = 1, WALL = 2, OUTSIDE = 3, WINDOW = 4, DOOR = 5, PROP = 6, MACHINE = 7, LOW = 8,
 }
 
-export interface Marker { ch: string; i: number; j: number; zone: number; index: number; facing: number }
+export interface Marker { ch: string; i: number; j: number; zone: number; index: number; facing: number; id?: string }
 export interface WindowCell {
   i: number; j: number; zone: number;
   /** inward normal (from outside to inside), unit grid axis */
@@ -57,7 +57,7 @@ export class Grid {
           case 'v': this.kind[idx] = K.FLOOR; this.vents.push({ i, j, zone: -1 }); break;
           case 'x': this.kind[idx] = K.PROP; this.pushMarker(ch, i, j, counters); break;
           case 'o': this.kind[idx] = K.LOW; this.pushMarker(ch, i, j, counters); break;
-          case 'p': case 'c': case 'r':
+          case 'p': case 'c': case 'r': case 'q':
             this.kind[idx] = K.MACHINE; this.pushMarker(ch, i, j, counters); break;
           case 'b': case 's': case 'e': case 'l':
             this.kind[idx] = K.FLOOR; this.pushMarker(ch, i, j, counters); break;
@@ -108,7 +108,7 @@ export class Grid {
   private pushMarker(ch: string, i: number, j: number, counters: Record<string, number>) {
     const index = counters[ch] ?? 0;
     counters[ch] = index + 1;
-    this.markers.push({ ch, i, j, zone: -1, index, facing: 0 });
+    this.markers.push({ ch, i, j, zone: -1, index, facing: 0, id: this.def.markerIds?.[`${i},${j}`] });
   }
 
   /** Spread zone ids from lettered floor cells into marker/start/vent cells. */

@@ -7,7 +7,7 @@ import { LightBaker, type BakeLight } from '../render/lightingBake';
 import { generateSurfaces, surfaceScale } from '../render/proceduralTextures';
 import { FlowField } from './flowField';
 import { mulberry32, type RNG } from '../core/math';
-import { themeProp, DOUBLE_PROPS, LOW_PROPS, lightCage } from './props';
+import { themeProp, DOUBLE_PROPS, LOW_PROPS, lightCage, bookshelf, lampPost } from './props';
 import { createSky } from './sky';
 
 export interface PracticalLight {
@@ -24,8 +24,9 @@ export interface PracticalLight {
 
 export interface DoorVisual {
   id: string;
-  kind: 'door' | 'debris';
+  kind: 'door' | 'debris' | 'secret';
   group: THREE.Group;
+  slide: THREE.Vector3;
   center: THREE.Vector3;
   cells: number[];
   open: boolean;
@@ -53,6 +54,7 @@ export interface BuildContext {
   addLight: (x: number, y: number, z: number, color: number, intensity: number, radius: number, flicker?: number, fixture?: 'cage' | 'none') => void;
   markers: (ch: string) => Marker[];
   zone: (i: number, j: number) => ZoneDef | null;
+  registerMaterial: (key: string, mat: THREE.Material) => void;
 }
 
 const WINDOW_SILL = 0.95, WINDOW_TOP = 2.15, DOOR_TOP = 2.5;
@@ -119,6 +121,7 @@ export class World {
       addLight: (x, y, z, color, intensity, radius, flicker = 0, fixture = 'cage') => this.addLight(batch, x, y, z, color, intensity, radius, flicker, fixture),
       markers: (ch) => this.markers(ch),
       zone: (i, j) => this.zoneDef(i, j),
+      registerMaterial: (key, mat) => this.matLib.register(key, mat),
     };
     this.autoLights(ctx);
     onProgress(0.52, 'Furnishing');
@@ -341,9 +344,21 @@ export class World {
     for (const m of this.markers('l')) {
       const zd = this.zoneDef(m.i, m.j);
       if (!zd) continue;
-      const y = zd.ceiling ? zd.height - 0.45 : 3.0;
-      ctx.addLight(m.i + 0.5, y, m.j + 0.5, zd.lightColor, zd.lightIntensity, 8.5, this.rng() < 0.35 ? 0.5 + this.rng() * 0.5 : 0, zd.ceiling ? 'cage' : 'none');
+      const y = zd.ceiling ? zd.height - 0.45 : 2.9;
+      if (!zd.ceiling) lampPost(ctx.batch, M(m.i + 0.5, 0, m.j + 0.5), this.rng);
+      ctx.addLight(m.i + 0.5, y, m.j + 0.5, zd.lightColor, zd.lightIntensity * (zd.ceiling ? 1 : 1.4), zd.ceiling ? 8.5 : 9.5, this.rng() < 0.35 ? 0.5 + this.rng() * 0.5 : 0, zd.ceiling ? 'cage' : 'none');
       placed.push({ x: m.i + 0.5, z: m.j + 0.5 });
+    }
+    // moonlight over open-sky zones and the outside ground (bake only, no fixtures)
+    const moon = this.def.sky === 'storm' ? 0x8090b0 : 0x90a8d8;
+    const mc = new THREE.Color(moon);
+    for (let j = 2; j < g.h; j += 6) for (let i = 2; i < g.w; i += 6) {
+      const k = g.kindAt(i, j);
+      const zd = this.zoneDef(i, j);
+      if (k === K.OUTSIDE || (zd && !zd.ceiling && k !== K.WALL)) {
+        const inten = zd ? 0.42 : 0.3;
+        this.bakeLights.push({ x: i + 0.5, y: 7, z: j + 0.5, r: mc.r * inten, g: mc.g * inten, b: mc.b * inten, radius: 11, noShadow: true });
+      }
     }
     def.zones.forEach((zd, zi) => {
       if (!zd.ceiling) return;
@@ -422,7 +437,10 @@ export class World {
         const alongX = g.solidForPlayer(i - 1, j) && g.kindAt(i - 1, j) !== K.DOOR || g.solidForPlayer(i + 1, j) && g.kindAt(i + 1, j) !== K.DOOR;
         const yaw = alongX ? 0 : Math.PI / 2; // slab spans local X
         const base = M(i + 0.5, 0, j + 0.5, yaw);
-        if (dd.kind === 'debris') {
+        if (dd.kind === 'secret') {
+          bookshelf(batch, base.clone().multiply(M(0, 0, 0.32)), r);
+          bookshelf(batch, base.clone().multiply(M(0, 0, -0.32, Math.PI)), r);
+        } else if (dd.kind === 'debris') {
           for (let n = 0; n < 7; n++) {
             const s = 0.3 + r() * 0.45;
             batch.add('surf:concrete', rbox(s, s * 0.7, s, 0.04), base.clone().multiply(M((r() - 0.5) * 0.8, 0.2 + r() * 1.2, (r() - 0.5) * 0.6, r() * 3, r() * 0.6, r() * 0.6)), 0x8a8880);
@@ -453,7 +471,11 @@ export class World {
         group.add(new THREE.Mesh(geo, this.matLib.get(key)));
       }
       this.group.add(group);
-      this.doors.set(dd.id, { id: dd.id, kind: dd.kind, group, center, cells: cells.cells, open: false, t: 0 });
+      const c0 = cells.cells[0];
+      const ci = c0 % g.w, cj = (c0 / g.w) | 0;
+      const along = g.kindAt(ci - 1, cj) === K.WALL || g.kindAt(ci + 1, cj) === K.WALL || g.kindAt(ci - 1, cj) === K.DOOR || g.kindAt(ci + 1, cj) === K.DOOR;
+      const slide = along ? new THREE.Vector3(cells.cells.length * 1.0, 0, 0) : new THREE.Vector3(0, 0, cells.cells.length * 1.0);
+      this.doors.set(dd.id, { id: dd.id, kind: dd.kind, group, center, cells: cells.cells, open: false, t: 0, slide });
     }
   }
 
@@ -546,8 +568,9 @@ export class World {
       d.t = Math.min(1, d.t + dt * 1.2);
       const e = d.t * d.t;
       if (d.kind === 'debris') { d.group.position.y = -e * 2.6; d.group.rotation.z = 0; }
+      else if (d.kind === 'secret') d.group.position.copy(d.slide).multiplyScalar(Math.min(1, d.t * 1.1) * 0.95);
       else d.group.position.y = e * 2.6;
-      if (d.t >= 1) d.group.visible = false;
+      if (d.t >= 1 && d.kind !== 'secret') d.group.visible = false;
     }
   }
 
