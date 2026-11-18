@@ -47,6 +47,11 @@ export class Game {
   readonly ambient: AmbientFx;
   over = false;
   onGameOver: (() => void) | null = null;
+  onReadNote: ((id: string, digit: string | null) => void) | null = null;
+  onModal: ((el: HTMLElement | null) => void) | null = null;
+  /** easter-egg system summary for the game-over screen */
+  eeSummary(): string { return this.ee ? this.ee.summary() : '—'; }
+  ee: { summary(): string; update(dt: number): void; dispose(): void } | null = null;
   invuln = 0;
   powerOn = false;
   private tmpV = new THREE.Vector3();
@@ -254,6 +259,7 @@ export class Game {
     this.powerups.update(dt);
     this.barriers.update(dt);
     this.objects.update(dt);
+    this.ee?.update(dt);
     const it = this.interact.update(dt, p, this.input);
     this.touch.setInteract(it.prompt && !this.over ? { ...it.prompt, progress: it.progress } : null);
     // music intensity (used by the score)
@@ -333,6 +339,7 @@ export class Game {
     for (const u of this.unsub) u();
     this.hud.dispose();
     this.objects.dispose();
+    this.ee?.dispose();
     this.zombies.stopAudio();
     audio.stop(this.ambVoice, 0.5);
     this.r.scene.remove(this.world.group, this.playerLamp, this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group);

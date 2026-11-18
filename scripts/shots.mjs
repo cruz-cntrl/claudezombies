@@ -46,8 +46,19 @@ for (const s of shots) {
     const z = document.getElementById('reserved-zone').getBoundingClientRect();
     const out = [];
     document.querySelectorAll('#hud *, #controls *, .interact, .screen button, .screen .btn').forEach((el) => {
-      const r = el.getBoundingClientRect();
+      const r0 = el.getBoundingClientRect();
       const st = getComputedStyle(el);
+      // clip by scroll containers (content scrolled out of view is not visible)
+      let r = { left: r0.left, top: r0.top, right: r0.right, bottom: r0.bottom, width: r0.width, height: r0.height };
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const ps = getComputedStyle(p);
+        if (ps.overflowY === 'auto' || ps.overflowY === 'hidden' || ps.overflowY === 'scroll') {
+          const pr = p.getBoundingClientRect();
+          r = { left: Math.max(r.left, pr.left), top: Math.max(r.top, pr.top), right: Math.min(r.right, pr.right), bottom: Math.min(r.bottom, pr.bottom) };
+          r.width = r.right - r.left; r.height = r.bottom - r.top;
+        }
+      }
+      if (r.width <= 0 || r.height <= 0) return;
       if (r.width === 0 || r.height === 0 || st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return;
       if (r.right > z.left + 0.5 && r.bottom > z.top + 0.5 && r.left < z.right && r.top < z.bottom) out.push((el.className || el.tagName) + ' ' + JSON.stringify([r.left | 0, r.top | 0, r.right | 0, r.bottom | 0]));
     });
