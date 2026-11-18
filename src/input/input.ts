@@ -15,6 +15,8 @@ export class Input {
   fire = false;
   aimHeld = false;
   aimToggled = false;
+  /** ADS toggled by tapping the left look pad (works in both hold and toggle modes) */
+  aimPad = false;
   interactHeld = false;
   grenadeHeld = false;
   enabled = false;
@@ -32,7 +34,7 @@ export class Input {
   }
 
   get aiming(): boolean {
-    return save.settings.adsMode === 'toggle' ? this.aimToggled : this.aimHeld;
+    return (save.settings.adsMode === 'toggle' ? this.aimToggled : this.aimHeld) || this.aimPad;
   }
 
   /** Add a look delta in pixels (touch) or mouse counts. */
@@ -57,6 +59,7 @@ export class Input {
     this.fire = false;
     this.aimHeld = false;
     this.aimToggled = false;
+    this.aimPad = false;
     this.interactHeld = false;
     this.grenadeHeld = false;
     this.lookDX = this.lookDY = 0;

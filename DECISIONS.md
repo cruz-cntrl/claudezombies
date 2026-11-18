@@ -79,3 +79,6 @@ Choices made where the brief was ambiguous, with the reasoning.
     of every carried weapon's max reserve; Brutes always drop a large one. Tins are skipped (left on the floor) when
     every gun is full.
 34. **Cheaper upgrades:** the Rewirer costs 3000 (was 5000) and wall ammo for a rewired gun costs 1500 (was 2500).
+35. **Left look pad.** The upper ~46 % of the movement side is an invisible second look pad: drag to turn the
+    camera (so the other thumb can stay on FIRE), quick tap (< 280 ms, < 14 px) to toggle aim-down-sights. The
+    movement stick still starts anywhere below it. Mirrored for left-handed play; can be switched off in Settings.

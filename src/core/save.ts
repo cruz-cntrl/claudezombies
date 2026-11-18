@@ -11,6 +11,8 @@ export interface Settings {
   buttonSize: 'S' | 'M' | 'L';
   buttonOpacity: number; // 0.2..1
   leftHanded: boolean;
+  /** Upper part of the movement side: drag to look, tap to toggle ADS */
+  leftLookPad: boolean;
   quality: Quality;
   showFps: boolean;
   master: number;
@@ -30,6 +32,7 @@ export const defaultSettings: Settings = {
   buttonSize: 'M',
   buttonOpacity: 0.7,
   leftHanded: false,
+  leftLookPad: true,
   quality: 'medium',
   showFps: false,
   master: 0.9,

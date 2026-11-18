@@ -178,6 +178,7 @@ export class Menus {
       seg('Button size', 'buttonSize', [['S', 'S'], ['M', 'M'], ['L', 'L']]),
       slider('Button opacity', 'buttonOpacity', 0.2, 1, 0.05),
       toggle('Left-handed layout', 'leftHanded'),
+      toggle('Look pad above the move stick', 'leftLookPad'),
       h('div', { class: 'h2', style: 'margin-top:12px' }, 'Graphics'),
       seg<Quality>('Quality', 'quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]),
       toggle('Show FPS', 'showFps'),
@@ -203,6 +204,7 @@ export class Menus {
     const body = h('div', { class: 'scroll panel txt', style: 'flex:1;min-height:0', html: `
       <div class="h2">Controls</div>
       <b>Touch:</b> drag the left side to move (push to the edge to sprint), swipe the right side to look. FIRE (drag from it to keep aiming), AIM, RELOAD, SWAP, MELEE, GRENADE (hold to cook, release to throw). Purchases need a short hold on the prompt.<br>
+      <b>Look pad:</b> the invisible upper half of the movement side is a second look pad — drag it to aim with your other thumb while you hold FIRE, and tap it to aim down sights.<br>
       <b>Keyboard + mouse:</b> WASD move, Shift sprint, mouse look (click to lock), LMB fire, RMB aim, R reload, E interact (hold), Q swap, F melee, G grenade, Esc pause.
       <div class="h2" style="margin-top:10px">Surviving</div>
       Every Tethered has a glowing chip in its skull. <b>Shoot the chip</b> for a critical hit — it shorts the Tether out and pays more.<br>

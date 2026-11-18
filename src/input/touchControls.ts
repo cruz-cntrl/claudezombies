@@ -13,7 +13,10 @@ const ICONS: Record<string, string> = {
   pause: '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',
 };
 
-type Role = { kind: 'joy' | 'look' | 'btn'; act?: string; el?: HTMLElement; lx: number; ly: number; lt: number; ox?: number; oy?: number };
+type Role = { kind: 'joy' | 'look' | 'btn' | 'pad'; act?: string; el?: HTMLElement; lx: number; ly: number; lt: number; ox?: number; oy?: number; t0?: number; travel?: number };
+
+/** Upper part of the movement side (fraction of screen height) that acts as the invisible look / ADS pad. */
+const PAD_SPLIT = 0.46;
 
 /**
  * Twin-stick touch controls: floating joystick (left), swipe-look (right), button arc above
@@ -171,6 +174,9 @@ export class TouchControls {
       role.kind = 'btn'; role.act = act; role.el = btn;
       btn.classList.add('pressed');
       this.buttonDown(act);
+    } else if (this.isMoveSide(e.clientX) && save.settings.leftLookPad && e.clientY < layout.H * PAD_SPLIT) {
+      // invisible look pad above the stick: drag to turn, quick tap to toggle aim-down-sights
+      role.kind = 'pad'; role.t0 = e.timeStamp; role.travel = 0;
     } else if (this.isMoveSide(e.clientX)) {
       role.kind = 'joy';
       let ox = Math.max(layout.sal + 66, Math.min(layout.W - layout.sar - 66, e.clientX));
@@ -195,7 +201,8 @@ export class TouchControls {
     const dt = Math.max(1, e.timeStamp - role.lt);
     role.lx = e.clientX; role.ly = e.clientY; role.lt = e.timeStamp;
     if (role.kind === 'joy') this.updateJoy(role, e.clientX, e.clientY);
-    else if (role.kind === 'look' || (role.kind === 'btn' && role.act === 'fire')) {
+    else if (role.kind === 'look' || role.kind === 'pad' || (role.kind === 'btn' && role.act === 'fire')) {
+      if (role.kind === 'pad') role.travel = (role.travel ?? 0) + Math.hypot(dx, dy);
       const speed = Math.hypot(dx, dy) / dt; // px/ms
       const accel = 1 + 0.7 * Math.max(0, Math.min(1, (speed - 0.3) / 2.2));
       this.input.addLook(dx * accel, dy * accel, 0.0048);
@@ -213,6 +220,8 @@ export class TouchControls {
     } else if (role.kind === 'btn' && role.act) {
       role.el?.classList.remove('pressed');
       this.buttonUp(role.act);
+    } else if (role.kind === 'pad' && (role.travel ?? 0) < 14 && e.timeStamp - (role.t0 ?? 0) < 280) {
+      this.input.aimPad = !this.input.aimPad;
     }
   }
 
