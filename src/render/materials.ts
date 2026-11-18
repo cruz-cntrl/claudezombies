@@ -15,7 +15,7 @@ export function withBake<T extends THREE.Material>(mat: T, mode: 'vertex' | 'ins
       .replace('#include <begin_vertex>', `#include <begin_vertex>\nvBake = ${attr};`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vBake;')
-      .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\nirradiance += vBake * 3.14159;');
+      .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\nirradiance += vBake * 2.2;');
   };
   mat.customProgramCacheKey = () => 'bake-' + mode;
   return mat;
