@@ -15,6 +15,8 @@ export const ZOMBIE = {
   chipCritMult: 2.5,
   /** Chip hit-sphere radius in metres (the visible chip is ~0.06 m across) */
   chipHitRadius: 0.11,
+  /** A chip hit always kills regular Tethered and hounds (Brutes and bosses still take crit damage) */
+  chipOneShot: true,
   staggerThreshold: 0.33, // fraction of max HP in one hit
   separation: 0.75,
 };

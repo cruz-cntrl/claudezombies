@@ -147,7 +147,11 @@ export class Combat implements CombatHost {
     opts: { weapon?: WeaponInstance; melee?: boolean; explosive?: boolean; arc?: boolean; noPoints?: boolean; sub?: number } = {}) {
     if (!z.alive) return { killed: false, crit: false };
     let dmg = base;
-    if (part === 'chip') dmg *= headMult * ZOMBIE.chipCritMult;
+    if (part === 'chip') {
+      dmg *= headMult * ZOMBIE.chipCritMult;
+      // shorting the chip drops a regular Tethered (or hound) instantly, whatever the round
+      if (ZOMBIE.chipOneShot && (z.type === 'zombie' || z.type === 'hound')) dmg = Math.max(dmg, z.hp + 1);
+    }
     else if (part === 'head') dmg *= headMult;
     else if (part === 'limb') dmg *= 0.8;
     if (this.overload() && !z.boss) dmg = z.type === 'brute' ? dmg * 8 : 1e9;

@@ -210,7 +210,7 @@ export class Menus {
       <b>Look pad:</b> the invisible upper half of the movement side is a second look pad — drag it to aim with your other thumb while you hold FIRE, and tap it to aim down sights.<br>
       <b>Keyboard + mouse:</b> WASD move, Shift sprint, mouse look (click to lock), LMB fire, RMB aim, R reload, E interact (hold), Q swap, F melee, G grenade, Esc pause.
       <div class="h2" style="margin-top:10px">Surviving</div>
-      Every Tethered has a glowing chip in its skull. <b>Shoot the chip</b> for a critical hit — it shorts the Tether out and pays more.<br>
+      Every Tethered has a glowing chip in its skull. <b>Shoot the chip</b> and it shorts out — <b>one hit kills</b> any Tethered or hound, and pays more. Brutes cage theirs, and bosses only take heavy damage there.<br>
       The dead come through boarded windows: hold the prompt at a window to rebuild boards (+10 each).<br>
       Spend points on chalk wall-buys, doors and debris. Find the <b>power switch</b> to wake the perk machines and the Rewirer.<br>
       The <b>Supply Crate</b> (950) gives a random weapon — until it gets bored and moves.<br>

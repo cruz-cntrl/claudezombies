@@ -23,7 +23,7 @@ export class Tutorial {
       done: (g) => Math.hypot(g.player.pos.x - this.start.x, g.player.pos.z - this.start.z) > 2.5 },
     { touch: '<b>Look:</b> swipe the right side — or the <b>upper half</b> of the left side, so you can aim while holding FIRE. Tap the upper-left to aim down sights.', keys: '<b>Look:</b> click to lock the mouse, then move it.',
       done: (g) => Math.abs(g.player.yaw - this.start.yaw) > 0.9 },
-    { touch: '<b>Fire:</b> hold the red FIRE button. Aim for the glowing chip on their skulls.', keys: '<b>Fire:</b> left mouse button. Aim for the glowing chips.',
+    { touch: '<b>Fire:</b> hold the red FIRE button. Hit the glowing chip on their skulls — one shot drops them.', keys: '<b>Fire:</b> left mouse button. Aim for the glowing chips.',
       done: () => this.flags.shot },
     { touch: '<b>Reload:</b> tap RELOAD.', keys: '<b>Reload:</b> press R.',
       done: () => this.flags.reload },

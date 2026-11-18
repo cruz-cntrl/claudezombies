@@ -89,3 +89,6 @@ Choices made where the brief was ambiguous, with the reasoning.
     a short sweep of the starting room every game that lands in the player's eyes, a fly-in the first time a door /
     debris / the secret bookshelf opens into a new room, and a reveal for each boss. Story text lives in
     `config/story.ts` and echoes the lore notes.
+38. **The chip is a one-shot kill.** Any hit on the chip of a regular Tethered or hound kills it instantly at any
+    round (bigger hit sphere: 0.11 m radius). Brutes (cage first) and bosses still take ×2.5 critical damage only.
+    Both are switches in `config/enemies.ts` (`chipOneShot`, `chipHitRadius`).
