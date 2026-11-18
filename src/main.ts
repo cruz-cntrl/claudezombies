@@ -15,6 +15,11 @@ import { setTextureSize } from './render/proceduralTextures';
 import { MAPS } from './world/maps';
 import { DIFFICULTY, type DifficultyId } from './config/difficulty';
 import { h } from './core/dom';
+import { audio } from './audio/audioEngine';
+import { registerSounds, ESSENTIAL } from './audio/catalog';
+import { recordScore } from './core/save';
+
+registerSounds();
 
 export const params = new URLSearchParams(location.search);
 export const DEBUG = params.get('debug') === '1';
@@ -95,7 +100,12 @@ export class App {
     this.loop.start();
     const mapParam = params.get('map');
     const first = mapParam && MAPS[mapParam] ? mapParam : 'ravenmoor';
-    await this.loadBackdrop(first);
+    let audioF = 0, mapF = 0, mapL = 'Preparing';
+    const report = () => this.progress(mapF * 0.75 + audioF * 0.25, audioF < 1 && mapF >= 1 ? 'Recording sounds' : mapL);
+    await Promise.all([
+      this.loadBackdrop(first, (f, l) => { mapF = f; mapL = l; report(); }),
+      audio.preload(ESSENTIAL, (f) => { audioF = f; report(); }),
+    ]);
     if (params.get('autostart') === '1') {
       await this.startGame(first, (params.get('difficulty') as DifficultyId) || 'normal');
       return;
@@ -123,10 +133,10 @@ export class App {
     this.loadingEls.label.textContent = label.toUpperCase();
   }
 
-  async loadBackdrop(id: string) {
+  async loadBackdrop(id: string, onP?: (f: number, l: string) => void) {
     if (this.backdropMap === id && this.backdrop) return;
     this.disposeBackdrop();
-    this.backdrop = await Game.load(this.r, MAPS[id], (f, l) => this.progress(f, l));
+    this.backdrop = await Game.load(this.r, MAPS[id], onP ?? ((f, l) => this.progress(f, l)));
     this.backdropMap = id;
   }
 
@@ -154,7 +164,7 @@ export class App {
       h('div', { style: 'height:8vh' }),
       h('div', { class: 'tap-start' }, 'TAP TO START'),
     );
-    scr.addEventListener('pointerup', () => this.showMenu(), { once: true });
+    scr.addEventListener('pointerup', () => { audio.unlock(); audio.play('ui_click', { bus: 'ui' }); this.showMenu(); }, { once: true });
     this.setScreen(scr);
   }
 
@@ -178,8 +188,11 @@ export class App {
     const world = this.backdrop!;
     this.backdrop = null;
     this.backdropMap = '';
-    this.game?.dispose();
-    this.game = new Game(this.r, world, this.input, DIFFICULTY[diff]);
+    if (this.game) { this.game.dispose(); this.game = null; }
+    this.game = new Game(this.r, world, this.input, DIFFICULTY[diff], this.touch);
+    this.game.onGameOver = () => this.showGameOver();
+    audio.unlock();
+    audio.background();
     this.setScreen(null);
     this.state = 'playing';
     this.input.reset();
@@ -212,6 +225,37 @@ export class App {
     this.input.reset();
     this.input.enabled = true;
     this.touch.setVisible(true);
+  }
+
+  showGameOver() {
+    const g = this.game;
+    if (!g) return;
+    this.state = 'gameover';
+    this.input.enabled = false;
+    this.touch.setVisible(false);
+    g.hud.setVisible(false);
+    this.kbm.exitLock();
+    const st = g.player.stats;
+    const round = g.rounds.round;
+    const best = recordScore(this.mapId, this.difficulty, round, st.kills);
+    const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    const scr = h('div', { class: 'screen dim', style: 'align-items:center;justify-content:center;text-align:center' },
+      h('div', { class: 'gameover-title' }, `YOU SURVIVED ${round} ROUND${round === 1 ? '' : 'S'}`),
+      best ? h('div', { class: 'newbest' }, 'NEW BEST') : null,
+      h('div', { class: 'panel stats', style: 'margin:10px 0;min-width:280px' },
+        h('span', null, 'Kills'), h('span', null, String(st.kills)),
+        h('span', null, 'Headshots'), h('span', null, String(st.headshots)),
+        h('span', null, 'Chip kills'), h('span', null, String(st.chipKills)),
+        h('span', null, 'Points earned'), h('span', null, String(st.pointsEarned)),
+        h('span', null, 'Doors opened'), h('span', null, String(st.doorsOpened)),
+        h('span', null, 'Time'), h('span', null, fmt(st.time)),
+      ),
+      h('div', { style: 'display:flex;gap:10px' },
+        h('button', { class: 'btn primary', onclick: () => this.startGame(this.mapId, this.difficulty) }, 'Retry'),
+        h('button', { class: 'btn', onclick: () => this.quitToMenu() }, 'Menu'),
+      ),
+    );
+    this.setScreen(scr);
   }
 
   async quitToMenu() {

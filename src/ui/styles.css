@@ -196,20 +196,20 @@ html, body {
 #hud.on { display: block; }
 .hud-points {
   position: absolute; text-align: right;
-  font-family: var(--font-display); font-size: 26px; color: var(--bone); letter-spacing: 0.04em;
+  font-family: var(--font-display); font-size: 25px; line-height: 1.1; color: var(--bone); letter-spacing: 0.04em;
   text-shadow: 2px 2px 0 #000, 0 0 10px rgba(0,0,0,0.8);
 }
-.hud-points .pop { position: absolute; right: 0; font-size: 18px; color: var(--gold); animation: popup 0.9s ease-out forwards; white-space: nowrap; }
+.hud-points .pop { position: absolute; right: 100%; margin-right: 6px; font-size: 18px; color: var(--gold); animation: popup 0.9s ease-out forwards; white-space: nowrap; }
 .hud-points .pop.crit { color: var(--chip); }
 .hud-points .pop.neg { color: var(--blood-hi); }
-@keyframes popup { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(-30px, 34px); opacity: 0; } }
+@keyframes popup { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(-70px, 4px); opacity: 0; } }
 .hud-ammo { position: absolute; text-align: right; text-shadow: 2px 2px 0 #000; }
-.hud-ammo .mag { font-family: var(--font-display); font-size: 30px; color: var(--bone); }
+.hud-ammo .mag { font-family: var(--font-display); font-size: 27px; line-height: 1; color: var(--bone); }
 .hud-ammo .mag.low { color: var(--blood-hi); }
 .hud-ammo .res { font-family: var(--font-display); font-size: 17px; color: var(--bone-dim); }
-.hud-ammo .wname { font-family: var(--font-type); font-size: 12px; color: var(--bone-dim); letter-spacing: 0.06em; }
+.hud-ammo .wname { font-family: var(--font-type); font-size: 11px; line-height: 1.1; color: var(--bone-dim); letter-spacing: 0.06em; }
 .hud-ammo .wname.up { color: var(--chip); }
-.hud-ammo .nades { font-size: 12px; color: var(--gold); letter-spacing: 0.1em; }
+.hud-ammo .nades { font-size: 10px; line-height: 1; color: var(--gold); letter-spacing: 0.1em; }
 .hud-round { position: absolute; }
 .hud-round canvas { display: block; }
 .hud-perks { position: absolute; display: flex; gap: 5px; }
@@ -238,7 +238,7 @@ html, body {
 .hud-boss .bar { height: 8px; background: rgba(0,0,0,0.7); border: 1px solid #5a1a14; margin-top: 3px; }
 .hud-boss .fill { height: 100%; background: linear-gradient(90deg, #6a0c08, var(--blood-hi)); width: 100%; transition: width 0.2s; }
 .hud-fps { position: absolute; font: 11px monospace; color: #8f8; text-shadow: 1px 1px 0 #000; white-space: pre; }
-.hud-revive { position: absolute; left: 50%; top: 40%; transform: translateX(-50%); text-align: center; font-family: var(--font-display); color: var(--blood-hi); font-size: 22px; letter-spacing: 0.15em; text-shadow: 2px 2px 0 #000; }
+.hud-revive { position: absolute; left: 50%; top: 28%; transform: translateX(-50%); text-align: center; font-family: var(--font-display); color: var(--blood-hi); font-size: 22px; letter-spacing: 0.15em; text-shadow: 2px 2px 0 #000; }
 .hud-ee { position: absolute; font-family: var(--font-type); font-size: 12px; color: var(--chip); text-shadow: 1px 1px 0 #000; }
 .static-overlay { position: absolute; inset: 0; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
 
