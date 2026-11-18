@@ -23,6 +23,8 @@ import { damp } from './core/math';
 import { MapObjects } from './systems/mapObjects';
 import { AimAssist } from './input/aimAssist';
 import { AmbientFx } from './systems/ambientFx';
+import { EasterEggs } from './systems/easterEggs';
+import type { Boss } from './entities/bosses/boss';
 
 /**
  * One play session on one map. Owns the world and all gameplay systems.
@@ -51,7 +53,11 @@ export class Game {
   onModal: ((el: HTMLElement | null) => void) | null = null;
   /** easter-egg system summary for the game-over screen */
   eeSummary(): string { return this.ee ? this.ee.summary() : '—'; }
-  ee: { summary(): string; update(dt: number): void; dispose(): void } | null = null;
+  ee: EasterEggs | null = null;
+  boss: Boss | null = null;
+  private fogBase = new THREE.Color();
+  private fogRed = new THREE.Color(0x2a0806);
+  private redK = 0;
   invuln = 0;
   powerOn = false;
   private tmpV = new THREE.Vector3();
@@ -138,6 +144,8 @@ export class Game {
       });
     }
     this.objects = new MapObjects(this);
+    this.ee = new EasterEggs(this);
+    this.fogBase.setHex(world.def.fogColor);
 
     this.weapons.give('warden');
     this.weapons.vm.setWeapon('warden', false);
@@ -151,6 +159,9 @@ export class Game {
       bus.on('zombieKilled', () => { /* stats handled in combat */ }),
     );
     this.hud.setVisible(true);
+    // 3D audio occlusion: low-pass sounds behind walls (throttled inside the engine)
+    const grid = world.grid;
+    audio.occluder = (ax, az, bx, bz) => grid.los(ax, az, bx, bz);
   }
 
   static async load(r: Renderer, def: MapDef, onProgress: (f: number, label: string) => void): Promise<World> {
@@ -262,9 +273,16 @@ export class Game {
     this.ee?.update(dt);
     const it = this.interact.update(dt, p, this.input);
     this.touch.setInteract(it.prompt && !this.over ? { ...it.prompt, progress: it.progress } : null);
+    // special rounds / bosses: chips and fog shift to red
+    const red = (this.rounds.special === 'hounds' && this.rounds.state === 'active') || !!this.boss?.alive ? 1 : 0;
+    this.redK = damp(this.redK, red, 1.2, dt);
+    this.zombies.chipTint = this.redK;
+    const fog = this.r.scene.fog as THREE.FogExp2 | null;
+    if (fog) { fog.color.copy(this.fogBase).lerp(this.fogRed, this.redK * 0.85); fog.density = this.world.def.fogDensity * (1 + this.redK * 0.35); }
+    (this.r.scene.background as THREE.Color | null)?.copy(fog ? fog.color : this.fogBase);
     // music intensity (used by the score)
     const alive = this.zombies.aliveCount;
-    this.musicIntensity = damp(this.musicIntensity, Math.min(1, alive / 14 + this.rounds.round / 30), 1, dt);
+    this.musicIntensity = damp(this.musicIntensity, Math.min(1, alive / 14 + this.rounds.round / 30 + (this.boss?.alive ? 0.6 : 0)), 1, dt);
   }
 
   private pushFromZombies(pos: THREE.Vector3) {
@@ -301,6 +319,7 @@ export class Game {
     this.world.baker.sample(p.pos.x, p.pos.z, this.probe);
     ws.vm.setLighting(this.probe.r, this.probe.g, this.probe.b);
     this.hud.update(frameDt);
+    this.touch.setAimActive(ws.ads > 0.5);
     // post fx
     const fx = this.r.fx;
     fx.ca = damp(fx.ca, 0, 3, frameDt);
@@ -347,5 +366,6 @@ export class Game {
     this.world.setupLightPool(this.r.scene, 0);
     this.world.dispose();
     this.touch.setInteract(null);
+    audio.occluder = null;
   }
 }

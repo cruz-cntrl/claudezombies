@@ -117,7 +117,9 @@ export class Combat implements CombatHost {
   hitscan(o: THREE.Vector3, d: THREE.Vector3, w: WeaponInstance, scale: number) {
     const st = w.stats;
     const env = this.envRay(o, d);
-    const hits = this.zombies.raycast(o.x, o.y, o.z, d.x, d.y, d.z, env.t, _hits);
+    const boss = this.g.boss;
+    const bh = boss?.raycast(o.x, o.y, o.z, d.x, d.y, d.z, env.t) ?? null;
+    const hits = this.zombies.raycast(o.x, o.y, o.z, d.x, d.y, d.z, bh ? bh.t : env.t, _hits);
     let pen = st.penetration + 1;
     let mult = scale;
     for (const h of hits) {
@@ -126,6 +128,12 @@ export class Combat implements CombatHost {
       this.damageZombie(h.z, h.part, st.damage * fall * mult, w.stats.headMult, d.x, d.z, h.x, h.y, h.z_, { weapon: w });
       if (st.splashRadius) this.explode(h.x, h.y, h.z_, st.splashRadius, st.splashDamage ?? 100, false, true);
       pen--; mult *= 0.75;
+    }
+    if (pen > 0 && bh && boss) {
+      const fall = 1 - clamp((bh.t - st.falloffStart) / Math.max(0.01, st.falloffEnd - st.falloffStart), 0, 1) * (1 - st.minDamageMult);
+      this.hitBoss(bh.part, st.damage * fall * mult * (bh.part === 'crit' ? st.headMult * ZOMBIE.chipCritMult : 1), bh.x, bh.y, bh.z, bh.shieldIdx);
+      if (st.splashRadius) this.explode(bh.x, bh.y, bh.z, st.splashRadius, st.splashDamage ?? 100, false, true);
+      pen = 0;
     }
     if (pen > 0 && env.t < 100) {
       const x = o.x + d.x * env.t, y = o.y + d.y * env.t, z = o.z + d.z * env.t;
@@ -180,6 +188,19 @@ export class Combat implements CombatHost {
     return res;
   }
 
+  /** Damage the active boss (bullets, explosions, arcs, melee). */
+  hitBoss(part: 'crit' | 'body' | 'shield', dmg: number, x: number, y: number, z: number, idx?: number) {
+    const boss = this.g.boss;
+    if (!boss || !boss.alive) return;
+    const fx = this.fx;
+    if (part === 'crit') { fx.sparks(x, y, z, 0, 1, 0, 10, 0xff8060, 3.5); audio.play('imp_chip', { pos: { x, y, z }, vol: 0.9, priority: 7 }); }
+    else if (part === 'shield') { audio.play('imp_cage', { pos: { x, y, z }, vol: 0.7, priority: 5 }); }
+    else { fx.blood(x, y, z, 0, 0.3, 0, 5); audio.play('imp_flesh', { pos: { x, y, z }, vol: 0.7, priority: 4 }); }
+    boss.damage(dmg, part, idx);
+    this.g.economy.add(ECONOMY.hit, 'hit');
+    bus.emit('zombieHit', { chip: part === 'crit', headshot: false, damage: dmg, x, y, z });
+  }
+
   // ---------------------------------------------------------------- explosions
   explode(x: number, y: number, z: number, radius: number, damage: number, selfDamage: boolean, small = false) {
     const fx = this.fx;
@@ -206,6 +227,13 @@ export class Combat implements CombatHost {
       const k = 1 - (d / radius) * 0.6;
       const nd = Math.hypot(dx, dz) || 1;
       this.damageZombie(zb, 'body', damage * k, 1, dx / nd, dz / nd, zb.x, 1, zb.z, { explosive: true });
+    }
+    const boss = this.g.boss;
+    if (boss?.alive && damage > 0) {
+      const c = boss.center();
+      const d = Math.hypot(c.x - x, c.z - z);
+      if (d < radius + 1.5) this.hitBoss('body', damage * 0.5 * (1 - Math.min(1, d / (radius + 1.5)) * 0.5), c.x, c.y, c.z);
+      boss.explodeAt(x, z, radius, damage);
     }
     if (selfDamage) {
       const p = this.g.player.pos;
@@ -321,6 +349,17 @@ export class Combat implements CombatHost {
       if (score < bestScore) { bestScore = score; first = z; }
     }
     const color = w.upgraded ? 0xff5050 : 0x60f0ff;
+    const boss = this.g.boss;
+    if (!first && boss?.alive) {
+      const c = boss.center();
+      const tx = c.x - o.x, ty = c.y - o.y, tz = c.z - o.z, dist = Math.hypot(tx, ty, tz);
+      if (dist < 32 && (tx * d.x + ty * d.y + tz * d.z) / dist > 0.95) {
+        fx.arc(jagged(muzzle, c.clone(), 10, 0.35), 0.25, 0.06, color);
+        fx.electric(c.x, c.y, c.z, 14, color);
+        this.hitBoss('crit', w.stats.damage * 0.35, c.x, c.y, c.z);
+        return;
+      }
+    }
     if (!first) {
       const env = this.envRay(o, d, 25);
       const end = new THREE.Vector3().copy(o).addScaledVector(d, env.t);
@@ -377,6 +416,11 @@ export class Combat implements CombatHost {
       const cos = (dx * d.x + dz * d.z) / (dist * Math.hypot(d.x, d.z) || 1);
       if (cos < 0.6 && dist > 0.7) continue;
       bd = dist; best = z;
+    }
+    const boss = this.g.boss;
+    if (!best && boss?.alive) {
+      const c = boss.center();
+      if (Math.hypot(c.x - o.x, c.z - o.z) < 2.6) { this.hitBoss('body', 150, c.x, c.y, c.z); audio.play('imp_meleeHit', { bus: 'sfx', vol: 0.9 }); return { hit: true }; }
     }
     if (!best) return { hit: false };
     const nd = Math.hypot(best.x - o.x, best.z - o.z) || 1;

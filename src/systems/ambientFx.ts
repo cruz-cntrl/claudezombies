@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Game } from '../game';
 import { audio } from '../audio/audioEngine';
 import { K } from '../world/grid';
+import { jagged } from '../render/fx';
 
 /** Atmosphere: rain streaks, drifting dust, steam bursts, lightning, distant one-shots. */
 export class AmbientFx {
@@ -16,6 +17,8 @@ export class AmbientFx {
   private lightningT = 8;
   private flash = 0;
   private steamSpots: { x: number; z: number }[] = [];
+  private coils: THREE.Vector3[] = [];
+  private arcT = 1;
 
   constructor(private g: Game) {
     this.rainPos = new Float32Array(this.N * 6);
@@ -27,6 +30,12 @@ export class AmbientFx {
     this.group.add(this.rain);
     for (let i = 0; i < this.N; i++) this.respawn(i, true);
     const grid = g.world.grid;
+    // capacitor tops in generator-themed zones arc to each other
+    g.world.def.zones.forEach((z, zi) => {
+      if (z.theme !== 'generator') return;
+      for (let j = 0; j < grid.h; j++) for (let i = 0; i < grid.w; i++)
+        if (grid.zoneAt(i, j) === zi && grid.kindAt(i, j) === K.PROP) this.coils.push(new THREE.Vector3(i + 0.5, 2.1, j + 0.5));
+    });
     g.world.def.zones.forEach((z, zi) => {
       if (!z.steam) return;
       for (let j = 0; j < grid.h; j++) for (let i = 0; i < grid.w; i++)
@@ -84,6 +93,20 @@ export class AmbientFx {
       if (Math.hypot(s.x - p.x, s.z - p.z) < 16) {
         for (let k = 0; k < 10; k++) fx.alpha.spawn(s.x, 1.8 + Math.random() * 0.8, s.z, (Math.random() - 0.5) * 1.2, 0.6 + Math.random() * 0.6, (Math.random() - 0.5) * 1.2, 1.2 + Math.random(), 0.8, 0.8, 0.8, 0.22, 0.25, 4, -0.3, 1.2);
         if (Math.random() < 0.6) audio.play('amb_steam', { pos: { x: s.x, y: 2, z: s.z }, vol: 0.35, priority: 1 });
+      }
+    }
+    // capacitor arcs (only once the power is on)
+    this.arcT -= dt;
+    if (this.arcT <= 0 && this.coils.length > 1 && g.powerOn) {
+      this.arcT = 0.3 + Math.random() * 1.2;
+      const a = this.coils[Math.floor(Math.random() * this.coils.length)];
+      let b = a, bd = 1e9;
+      for (const c of this.coils) { const d = c.distanceTo(a); if (c !== a && d < bd && d < 9 && Math.random() < 0.7) { bd = d; b = c; } }
+      if (b !== a && Math.hypot(a.x - p.x, a.z - p.z) < 20) {
+        fx.arc(jagged(a, b, 10, 0.5), 0.14, 0.04, 0x9ad8ff);
+        fx.electric(b.x, b.y, b.z, 5, 0x9ad8ff);
+        fx.flash(a.x, a.y + 0.5, a.z, 8, 0x9ad8ff);
+        if (Math.random() < 0.6) audio.play('imp_arcZap', { pos: { x: a.x, y: a.y, z: a.z }, vol: 0.35, priority: 2 });
       }
     }
     // sparks from flickering fixtures

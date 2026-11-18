@@ -344,7 +344,7 @@ export class World {
     for (const m of this.markers('l')) {
       const zd = this.zoneDef(m.i, m.j);
       if (!zd) continue;
-      const y = zd.ceiling ? zd.height - 0.45 : 2.9;
+      const y = zd.ceiling ? Math.min(zd.height - 0.45, 3.3) : 2.9;
       if (!zd.ceiling) lampPost(ctx.batch, M(m.i + 0.5, 0, m.j + 0.5), this.rng);
       ctx.addLight(m.i + 0.5, y, m.j + 0.5, zd.lightColor, zd.lightIntensity * (zd.ceiling ? 1 : 1.4), zd.ceiling ? 8.5 : 9.5, this.rng() < 0.35 ? 0.5 + this.rng() * 0.5 : 0, zd.ceiling ? 'cage' : 'none');
       placed.push({ x: m.i + 0.5, z: m.j + 0.5 });
@@ -368,7 +368,9 @@ export class World {
         if ((i % sp) !== 2 || (j % sp) !== 2) continue;
         if (placed.some((p) => Math.abs(p.x - i - 0.5) < sp * 0.6 && Math.abs(p.z - j - 0.5) < sp * 0.6)) continue;
         const flick = this.rng() < 0.3 ? 0.4 + this.rng() * 0.6 : 0;
-        ctx.addLight(i + 0.5, zd.height - 0.45, j + 0.5, zd.lightColor, zd.lightIntensity, 8.5, flick);
+        // tall halls get low-hanging industrial pendants
+        const ly = Math.min(zd.height - 0.45, 3.3);
+        ctx.addLight(i + 0.5, ly, j + 0.5, zd.lightColor, zd.lightIntensity, zd.height > 4 ? 10.5 : 8.5, flick);
         placed.push({ x: i + 0.5, z: j + 0.5 });
       }
     });

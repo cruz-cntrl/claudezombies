@@ -7,6 +7,33 @@ import { PERKS } from '../config/perks';
 import { audio } from '../audio/audioEngine';
 import type { App } from '../main';
 
+/** Chalk-on-slate floor plan of a map, drawn from its grid layout. */
+function mapPreview(id: string): HTMLCanvasElement {
+  const m = MAPS[id];
+  const rows = m.layout, H = rows.length, W = Math.max(...rows.map((r) => r.length));
+  const c = document.createElement('canvas');
+  const S = 6;
+  c.width = W * S; c.height = H * S;
+  const g = c.getContext('2d')!;
+  const letters = m.zones.map((z) => z.letter);
+  const zc = ['#3a4a44', '#4a3a30', '#2e3a4a', '#4a4630', '#3a2e3e', '#2e4a3a'];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const ch = rows[y][x] ?? ' ';
+    const zi = letters.indexOf(ch);
+    let col = '';
+    if (ch === '#') col = '#d8d0bc';
+    else if (ch === 'w') col = '#c0392b';
+    else if (ch >= '1' && ch <= '9') col = '#d8a940';
+    else if (ch === ',') col = '#141412';
+    else if (zi >= 0 || 'xopcrsbelvq*'.includes(ch)) col = zi >= 0 ? zc[zi % zc.length] : '#5a5448';
+    if (!col) continue;
+    g.fillStyle = col;
+    g.fillRect(x * S, y * S, S, S);
+  }
+  c.style.cssText = 'width:100%;height:auto;max-height:46%;object-fit:contain;opacity:.85;margin-bottom:6px;image-rendering:pixelated';
+  return c;
+}
+
 const click = () => audio.play('ui_click', { bus: 'ui', vol: 0.7 });
 const back = () => audio.play('ui_back', { bus: 'ui', vol: 0.7 });
 
@@ -70,7 +97,8 @@ export class Menus {
         const s = save.scores[`${id}:${d}`];
         return `${DIFFICULTY[d].name}: ${s ? 'R' + s.round : '—'}`;
       }).join('   ');
-      const card = h('div', { class: 'card', style: 'flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-height:0;background:' + (id === 'ravenmoor' ? 'linear-gradient(160deg,#1c2622,#0c0d0b)' : 'linear-gradient(160deg,#2a2214,#0b0c12)') },
+      const card = h('div', { class: 'card', style: 'flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-height:0;overflow:hidden;background:' + (id === 'ravenmoor' ? 'linear-gradient(160deg,#1c2622,#0c0d0b)' : 'linear-gradient(160deg,#2a2214,#0b0c12)') },
+        mapPreview(id),
         h('div', { class: 'ct' }, m.name.toUpperCase()),
         h('div', { class: 'cs' }, m.subtitle),
         h('div', { class: 'cs', style: 'margin-top:6px;font-size:11px' }, m.desc),

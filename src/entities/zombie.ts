@@ -106,6 +106,10 @@ export class ZombieManager {
   private buzzTimer = 0;
   private time = 0;
   freezeAll = false;
+  /** 0 = map chip colour, 1 = red (special rounds / bosses) */
+  chipTint = 0;
+  private glowCol = new THREE.Color();
+  private static RED = new THREE.Color(0xff3020);
 
   constructor(private world: World, private host: ZombieHost) {
     const mats = createMaterials();
@@ -530,7 +534,7 @@ export class ZombieManager {
   // -------------------------------------------------------------- pose & render
   pose(dt: number) {
     const H = this.human, D = this.hound;
-    const glowCol = this.host.chipColor;
+    const glowCol = this.glowCol.copy(this.host.chipColor).lerp(ZombieManager.RED, this.chipTint);
     let hi = 0, di = 0;
     const lights: Zombie[] = [];
     for (const z of this.humans) {
@@ -674,7 +678,7 @@ export class ZombieManager {
     if (z.chipStutter > 0) fl = Math.random() < 0.6 ? 0.05 : 1.4;
     if (z.chipDead) fl = Math.max(0, 1 - z.deathT * 6) * (Math.random() < 0.5 ? 1.5 : 0.2);
     z.chipFlicker = Math.max(0, fl);
-    _col.copy(this.host.chipColor).multiplyScalar(z.chipFlicker * 3);
+    _col.copy(this.glowCol).multiplyScalar(z.chipFlicker * 3);
     H.meshes.glow.setMatrixAt(i, tmp);
     H.meshes.glow.setColorAt(i, _col);
     // cage
@@ -741,7 +745,7 @@ export class ZombieManager {
     if (z.chipDead) fl = Math.max(0, 1 - z.deathT * 6);
     z.chipFlicker = fl;
     D.meshes.glow.setMatrixAt(i, tmp);
-    _col.copy(this.host.chipColor).multiplyScalar(fl * 3);
+    _col.copy(this.glowCol).multiplyScalar(fl * 3);
     D.meshes.glow.setColorAt(i, _col);
     z.head.setFromMatrixPosition(head);
     // legs: gallop gait (front pair vs back pair offset)
