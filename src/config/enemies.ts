@@ -13,6 +13,8 @@ export const ZOMBIE = {
   climbTime: 1.2,
   stuckRespawnSeconds: 8,
   chipCritMult: 2.5,
+  /** Chip hit-sphere radius in metres (the visible chip is ~0.06 m across) */
+  chipHitRadius: 0.11,
   staggerThreshold: 0.33, // fraction of max HP in one hit
   separation: 0.75,
 };

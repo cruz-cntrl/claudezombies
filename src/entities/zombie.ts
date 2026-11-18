@@ -636,7 +636,7 @@ export class ZombieManager {
         const t = raySphere(ox, oy, oz, dx, dy, dz, cxw, cyw, czw, rad);
         if (t >= 0 && t < best) { best = t; part = p; sub = 0; }
       };
-      if (!z.chipDead) chk(z.chip.x, z.chip.y, z.chip.z, (z.type === 'brute' && z.cageHp > 0 ? 0.2 : 0.075) * z.scale, z.type === 'brute' && z.cageHp > 0 ? 'cage' : 'chip');
+      if (!z.chipDead) chk(z.chip.x, z.chip.y, z.chip.z, (z.type === 'brute' && z.cageHp > 0 ? 0.2 : ZOMBIE.chipHitRadius) * z.scale, z.type === 'brute' && z.cageHp > 0 ? 'cage' : 'chip');
       chk(z.head.x, z.head.y, z.head.z, (z.type === 'hound' ? 0.14 : 0.13) * z.scale, 'head');
       const L = z.limbs;
       const segs = 5; // body + 4 limbs (both rigs fill limbs[0..9])
