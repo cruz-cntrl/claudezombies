@@ -176,6 +176,8 @@ export class App {
     this.state = 'title';
     this.touch.setVisible(false);
     const scr = this.menus.title();
+    // iOS only unlocks Web Audio inside certain gestures: try every one of them
+    for (const ev of ['touchend', 'click']) scr.addEventListener(ev, () => audio.unlock(), { once: true });
     scr.addEventListener('pointerup', () => {
       audio.unlock();
       audio.play('ui_click', { bus: 'ui' });
@@ -401,6 +403,7 @@ if (params.get('safe') === '1') document.documentElement.classList.add('sim-safe
 computeLayout();
 const app = new App();
 (window as any).app = app;
+if (DEBUG) (window as any).save = save;
 app.boot().catch((e) => {
   console.error(e);
   document.getElementById('screens')!.innerHTML = `<div class="screen solid" style="align-items:center;justify-content:center"><div class="h2">Failed to start</div><div class="txt">${String(e)}</div></div>`;

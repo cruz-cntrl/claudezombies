@@ -58,7 +58,7 @@ function chalkTexture(def: WeaponDef): THREE.CanvasTexture {
     g.textAlign = 'center';
     g.fillText(def.name.toUpperCase(), 256, 214);
     g.font = '26px "Black Ops One", Impact';
-    g.fillText(String(def.cost), 256, 46);
+    g.fillText(def.cost > 0 ? String(def.cost) : `AMMO ${def.ammoCost}`, 256, 46);
   });
 }
 

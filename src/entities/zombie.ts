@@ -106,6 +106,7 @@ export class ZombieManager {
   private buzzTimer = 0;
   private time = 0;
   freezeAll = false;
+  private cageCount = 0;
   /** 0 = map chip colour, 1 = red (special rounds / bosses) */
   chipTint = 0;
   private glowCol = new THREE.Color();
@@ -536,6 +537,7 @@ export class ZombieManager {
     const H = this.human, D = this.hound;
     const glowCol = this.glowCol.copy(this.host.chipColor).lerp(ZombieManager.RED, this.chipTint);
     let hi = 0, di = 0;
+    this.cageCount = 0;
     const lights: Zombie[] = [];
     for (const z of this.humans) {
       if (!z.active) continue;
@@ -548,6 +550,7 @@ export class ZombieManager {
       if (!z.chipDead) lights.push(z);
     }
     for (const p of HUMAN_PARTS) H.meshes[p].count = hi;
+    H.meshes.cage.count = this.cageCount;
     for (const p of HOUND_PARTS) D.meshes[p].count = di;
     for (const p of HUMAN_PARTS) { H.meshes[p].instanceMatrix.needsUpdate = true; if (H.meshes[p].instanceColor) H.meshes[p].instanceColor!.needsUpdate = true; }
     for (const p of HOUND_PARTS) { D.meshes[p].instanceMatrix.needsUpdate = true; if (D.meshes[p].instanceColor) D.meshes[p].instanceColor!.needsUpdate = true; }
@@ -682,8 +685,8 @@ export class ZombieManager {
     H.meshes.glow.setMatrixAt(i, tmp);
     H.meshes.glow.setColorAt(i, _col);
     // cage
-    if (z.type === 'brute' && z.cageHp > 0) { P.local(tmp, head, 0, 0.02, 0, 0, 0, 0, 1.15); this.setInst(H, 'cage', i, tmp, null); }
-    else H.meshes.cage.setMatrixAt(i, _zero);
+    // cages are packed into their own slots so only brutes pay for the geometry
+    if (z.type === 'brute' && z.cageHp > 0) { P.local(tmp, head, 0, 0.02, 0, 0, 0, 0, 1.15); this.setInst(H, 'cage', this.cageCount++, tmp, null); }
     z.head.setFromMatrixPosition(head).add(_v.set(0, 0.12 * s, 0));
     z.neck.setFromMatrixPosition(head);
     z.pelvis.setFromMatrixPosition(pelvis);

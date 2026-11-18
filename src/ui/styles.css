@@ -246,13 +246,13 @@ html, body {
 
 /* tutorial */
 .tut {
-  position: absolute; left: 50%; top: calc(var(--sat) + 62px); transform: translateX(-50%);
-  max-width: min(420px, 52vw); padding: 8px 14px; pointer-events: auto;
+  position: absolute; left: 50%; bottom: calc(var(--sab) + 10px); transform: translateX(-50%);
+  max-width: min(400px, 46vw); padding: 8px 14px; pointer-events: none;
   background: rgba(14,11,9,0.9); border: 1px solid rgba(233,225,204,0.25); border-left: 4px solid var(--chip);
   font-family: var(--font-type); font-size: 14px; color: var(--bone); z-index: 30;
 }
 .tut b { color: var(--chip); font-weight: normal; }
-.tut .skip { display: inline-block; margin-left: 10px; color: var(--bone-dim); font-size: 12px; text-decoration: underline; padding: 4px; }
+.tut .skip { pointer-events: auto; display: inline-block; margin-left: 10px; color: var(--bone-dim); font-size: 12px; text-decoration: underline; padding: 4px; }
 
 /* lore note */
 .note-paper {

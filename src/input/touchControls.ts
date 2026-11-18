@@ -133,7 +133,8 @@ export class TouchControls {
       this.interactEl.style.left = Math.max(L.W * 0.3, cx + R + 40) + 'px';
       this.interactEl.style.transform = 'translate(0, -50%)';
     }
-    this.interactEl.style.top = L.H * 0.64 + 'px';
+    // above the button arc and clear of the crosshair: free centre-right space
+    this.interactEl.style.top = Math.max(L.sat + 64, Math.min(L.H * 0.3, cy - R * 0.94 - 6)) + 'px';
   }
   fireCenter = { x: 0, y: 0 };
 

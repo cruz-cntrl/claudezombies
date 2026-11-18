@@ -22,7 +22,7 @@ export function M(x = 0, y = 0, z = 0, ry = 0, rx = 0, rz = 0, sx = 1, sy = sx, 
 }
 
 export const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
-export const rbox = (w: number, h: number, d: number, r = 0.03, seg = 2) =>
+export const rbox = (w: number, h: number, d: number, r = 0.03, seg = 1) =>
   new RoundedBoxGeometry(w, h, d, seg, Math.min(r, w / 2 - 1e-3, h / 2 - 1e-3, d / 2 - 1e-3));
 export const cyl = (rt: number, rb: number, h: number, seg = 10, open = false) =>
   new THREE.CylinderGeometry(rt, rb, h, seg, 1, open);

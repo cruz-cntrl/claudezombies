@@ -23,3 +23,30 @@ Choices made where the brief was ambiguous, with the reasoning.
    adapts to whatever height Safari gives.
 8. **Render interpolation** applies to the camera only; zombies render at their latest 60 Hz state (the device
    display is 60 Hz).
+9. **Zombies are instanced articulated rigs.** One `InstancedMesh` per body part (14 parts) shared by all
+   creatures; active creatures are packed into the first slots every frame so inactive slots cost nothing.
+   24 zombies ≈ 15 draw calls. Brute cages are packed separately so only Brutes pay for that geometry.
+10. **Semi-auto weapons repeat while FIRE is held on touch** (at ~70 % of their max rate). Tapping fastest is still
+    best, but holding is usable on a phone. Mouse users must click per shot.
+11. **Perks are lost when you go down** (the genre's classic rule); a Packmule third weapon is dropped on revive.
+    Second Wind adds one self-revive per purchase (max 3).
+12. **The Rewirer keeps your weapon for 12 s after it finishes.** If you don't take it back, it's gone.
+13. **Power-ups have no announcer voice** (speech can't be synthesized convincingly without samples); each has a
+    distinct radio-broadcast chord stinger plus a large on-screen title.
+14. **Hound rounds spawn hounds with a lightning strike inside unlocked areas** (6–16 m from the player) rather than
+    through windows; chips and fog shift to red for the round and for boss fights.
+15. **Bosses pause the round spawner** while alive and spawn their own runner minions; normal rounds resume after.
+16. **Easter-egg randomisation:** the Ravenmoor radio frequency and the Station keypad digits are randomised per
+    run and shown on in-run notes, so the quests can't be skipped from memory. Lore-note collection persists.
+17. **Hidden room reward (Ravenmoor):** the Director's stash gives +1500 points and a Resupply. **Radio gag
+    (Station):** a broken radio laughs at you for a small one-off tip.
+18. **Boss rewards:** every Halcyon Tonic is granted free (the 4-perk cap is ignored) and your current weapon is
+    rewired for free. Halcyon Station also plays a "Signal Cut" ending card; rounds continue endlessly after.
+19. **Station roof** is a walled rooftop compound (parapets are full-height walls) — the grid world has one floor
+    level, so a low parapet would expose ground-level geometry outside.
+20. **Music rendering budget:** essential SFX (~35 sounds) render during the loading screen; everything else,
+    including music loops and the ~2-minute easter-egg songs, renders in the background after first playable.
+21. **Low quality** disables the post-processing composer entirely (vignette and damage edges are CSS overlays on
+    every tier, so they keep working).
+22. **Menus reserve the bottom strip** of the screen (reserved-zone height) on every screen, so no menu button,
+    slider or scrollable row can ever sit in the Netlify zone.

@@ -163,9 +163,9 @@ const GENS: Record<Surface, { gen: Gen; normal: number; scale: number }> = {
     const rust = sstep(0.5, 0.7, fbm(u, v, 3, 5, 17) + (n - 0.5) * 0.3);
     const scratch = sstep(0.82, 0.9, fbm2(u, v, 64, 4, 3, 13)) * 0.6;
     const base = 0.28 + n * 0.08 + scratch * 0.15;
-    p.r = mix(base, 0.36 + n * 0.1, rust);
-    p.g = mix(base * 1.02, 0.18 + n * 0.05, rust);
-    p.b = mix(base * 1.05, 0.08, rust);
+    p.r = mix(base, 0.3 + n * 0.08, rust * 0.85);
+    p.g = mix(base * 1.02, 0.2 + n * 0.05, rust * 0.85);
+    p.b = mix(base * 1.05, 0.12, rust * 0.85);
     p.h = 0.5 + rust * (n - 0.3) * 0.5;
     p.rough = mix(0.45 - scratch * 0.2, 0.92, rust);
   } },
