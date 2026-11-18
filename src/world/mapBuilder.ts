@@ -587,9 +587,15 @@ export class World {
   }
 
   dispose() {
+    // world meshes + map objects (chalk, signs, crate parts) + the sky
     this.group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.geometry) m.geometry.dispose();
+      const mat = (m as any).material as THREE.Material | undefined;
+      if (mat && !(mat as any).__shared) {
+        const t = (mat as any).map as THREE.Texture | null;
+        if (t && (t as any).isCanvasTexture) t.dispose();
+      }
     });
     this.matLib.dispose();
   }

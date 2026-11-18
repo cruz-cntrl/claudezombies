@@ -91,11 +91,7 @@ export class Renderer {
     this.vmCamera = new THREE.PerspectiveCamera(58, 2, 0.01, 10);
     this.scene.add(this.camera);
     this.vmScene.add(this.vmCamera);
-    // Viewmodel reflections: metals need something to reflect or they read as black.
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.vmScene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.vmScene.environmentIntensity = 0.4;
-    pmrem.dispose();
+    this.makeEnvironment();
 
     canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
@@ -103,6 +99,9 @@ export class Renderer {
     });
     canvas.addEventListener('webglcontextrestored', () => {
       this.contextLost = false;
+      // the old render targets belonged to the lost context: drop them without deleting
+      this.composer = null;
+      this.makeEnvironment();
       this.setupComposer();
       this.resize();
       this.onContextRestored?.();
@@ -111,6 +110,14 @@ export class Renderer {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     window.visualViewport?.addEventListener('resize', () => this.resize());
+  }
+
+  /** Viewmodel reflections: metals need something to reflect or they read as black. */
+  private makeEnvironment() {
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.vmScene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    if (!this.vmScene.environmentIntensity || this.vmScene.environmentIntensity === 1) this.vmScene.environmentIntensity = 0.3;
+    pmrem.dispose();
   }
 
   setQuality(q: Quality) {

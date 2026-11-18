@@ -136,5 +136,11 @@ export class Powerups {
     this.timers.clear();
   }
 
+  dispose() {
+    this.clear();
+    for (const t of this.tex.values()) t.dispose();
+    this.ringGeo.dispose();
+  }
+
   get list() { return [...this.timers.entries()].filter(([, t]) => t > 0); }
 }

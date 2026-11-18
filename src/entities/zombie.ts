@@ -414,6 +414,15 @@ export class ZombieManager {
   private beginAttack(z: Zombie) {
     z.setState('attack');
     z.attackHit = false;
+    if (z.type === 'brute') {
+      // telegraph the slam: a ring of dust + embers where it will land
+      const cx = z.x + Math.sin(z.yaw) * 1.2, cz = z.z + Math.cos(z.yaw) * 1.2;
+      for (let k = 0; k < 18; k++) {
+        const a = (k / 18) * Math.PI * 2;
+        this.host.fx.dust(cx + Math.cos(a) * BRUTE.slamRadius * 0.9, 0.05, cz + Math.sin(a) * BRUTE.slamRadius * 0.9, 0, 1, 0, 1, 0x7a3020);
+        this.host.fx.glowPuff(cx + Math.cos(a) * BRUTE.slamRadius * 0.9, 0.08, cz + Math.sin(a) * BRUTE.slamRadius * 0.9, 0xff3010, 0.25, BRUTE.slamWindup);
+      }
+    }
     const snd = z.type === 'hound' ? 'z_houndBark' : z.type === 'brute' ? 'z_bruteRoar' : 'z_attack';
     audio.play(snd, { pos: { x: z.x, y: 1.5, z: z.z }, bus: 'voice', vol: 1, priority: 6 });
   }

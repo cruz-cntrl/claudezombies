@@ -89,6 +89,18 @@ export class Viewmodel {
     this.root.add(this.bottleArm);
   }
 
+  /** Remove everything this viewmodel added to the camera / scene and free per-session geometry. */
+  dispose(scene: THREE.Scene) {
+    if (this.gun) this.gun.root.remove(this.handR, this.handL, this.flash);
+    this.camera.remove(this.root, this.flashLight);
+    scene.remove(this.hemi, this.key);
+    for (const o of [this.handR, this.handL, this.knifeArm, this.nadeArm, this.bottleArm]) {
+      o.traverse((m) => { const mesh = m as THREE.Mesh; if (mesh.geometry) mesh.geometry.dispose(); });
+    }
+    this.flash.geometry.dispose();
+    (this.flash.material as THREE.Material).dispose();
+  }
+
   setWeapon(id: string, upgraded: boolean) {
     const key = id + (upgraded ? ':up' : '');
     if (key === this.currentId) return;

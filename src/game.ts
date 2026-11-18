@@ -23,6 +23,7 @@ import { damp } from './core/math';
 import { MapObjects } from './systems/mapObjects';
 import { AimAssist } from './input/aimAssist';
 import { createGunModel } from './weapons/weaponModels';
+import { disposeTree } from './core/dispose';
 import { AmbientFx } from './systems/ambientFx';
 import { EasterEggs } from './systems/easterEggs';
 import type { Boss } from './entities/bosses/boss';
@@ -197,6 +198,8 @@ export class Game {
     } catch { /* compile is best-effort */ }
     for (const o of hidden) o.visible = false;
     r.vmScene.remove(extra);
+    // geometry is per-model; materials are the shared gun materials and stay alive
+    extra.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
   }
 
   // ---------------------------------------------------------------- player damage
@@ -359,7 +362,16 @@ export class Game {
       this.heartT -= frameDt;
       if ((hpFrac < 0.4 || p.downed) && this.heartT <= 0 && !this.over) { this.heartT = p.downed ? 0.7 : 0.9; audio.play('ui_heartbeat', { bus: 'sfx', vol: 0.7, priority: 6, noVariation: true }); }
       const ph = Math.floor(p.bobPhase / Math.PI);
-      if (ph !== this.stepPhase) { this.stepPhase = ph; if (p.speed > 1) audio.play('ui_step', { bus: 'sfx', vol: p.sprinting ? 0.35 : 0.22, priority: 1 }); }
+      if (ph !== this.stepPhase) {
+        this.stepPhase = ph;
+        if (p.speed > 1) {
+          const zd = this.world.zoneDef(Math.floor(p.pos.x), Math.floor(p.pos.z));
+          const v = p.sprinting ? 0.35 : 0.22;
+          audio.play('ui_step', { bus: 'sfx', vol: v, priority: 1, rate: zd?.floor === 'grass' || zd?.floor === 'dirt' ? 0.8 : 1 });
+          if (zd?.water) audio.play('imp_water', { bus: 'sfx', vol: v * 0.6, priority: 1, rate: 1.3 });
+          else if (zd?.floor === 'grate' || zd?.floor === 'metal') audio.play('imp_metal', { bus: 'sfx', vol: v * 0.35, priority: 1, rate: 0.7 });
+        }
+      }
     }
   }
 
@@ -387,6 +399,10 @@ export class Game {
     this.zombies.stopAudio();
     audio.stop(this.ambVoice, 0.5);
     this.r.scene.remove(this.world.group, this.playerLamp, this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group);
+    this.weapons.vm.dispose(this.r.vmScene);
+    this.fx.flashTex.dispose();
+    this.powerups.dispose();
+    for (const grp of [this.fx.group, this.zombies.group, this.barriers.mesh, this.combat.group, this.powerups.group, this.ambient.group]) disposeTree(grp);
     for (const l of this.zombies.chipLights) this.r.scene.remove(l);
     this.world.setupLightPool(this.r.scene, 0);
     this.world.dispose();
