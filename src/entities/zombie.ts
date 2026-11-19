@@ -389,16 +389,20 @@ export class ZombieManager {
             else if (!plat.occupant && Math.hypot(plat.tx - z.x, plat.tz - z.z) < 0.5) {
               plat.occupant = z; z.onPlatform = null; z.setState('ladder'); z.lunge = -1; z.x = plat.bx; z.z = plat.bz; break;
             } else { const dx = plat.tx - z.x, dz = plat.tz - z.z, d = Math.hypot(dx, dz) || 1; mx = dx / d; mz = dz / d; }
-          } else if (playerUp && ladders.length && z.type === 'zombie') {
-            // the player is up a tower: queue at the foot of the nearest ladder and climb
+          } else if (playerUp && ladders.length) {
+            // the player is up a tower: nobody climbs — they crowd round the foot of the ladder and wait
             let L = ladders[0], ld = 1e9;
             for (const l of ladders) { const d = Math.hypot(l.bx - z.x, l.bz - z.z); if (d < ld) { ld = d; L = l; } }
-            if (ld < 0.7 && !L.occupant) { L.occupant = z; z.x = L.bx; z.z = L.bz; z.setState('ladder'); z.lunge = 1; break; }
-            if (ld < 4 && g.los(z.x, z.z, L.bx, L.bz)) {
-              const dx = L.bx - z.x, dz = L.bz - z.z, d = Math.hypot(dx, dz) || 1;
-              mx = dx / d; mz = dz / d;
-              if (L.occupant && ld < 1.6) { mx = 0; mz = 0; } // wait your turn
-            } else if (flow.direction(z.x, z.z, _dir)) { mx = _dir.x; mz = _dir.z; }
+            const ring = 1.3 + (z.idx % 4) * 0.45;
+            if (ld > ring + 0.3) {
+              if (ld < 5 && g.los(z.x, z.z, L.bx, L.bz)) { const dx = L.bx - z.x, dz = L.bz - z.z, d = Math.hypot(dx, dz) || 1; mx = dx / d; mz = dz / d; }
+              else if (flow.direction(z.x, z.z, _dir)) { mx = _dir.x; mz = _dir.z; }
+            } else {
+              // mill about, looking up at the player
+              const ux = (z.x - L.bx) / (ld || 1), uz = (z.z - L.bz) / (ld || 1);
+              mx = -uz * 0.3 * (z.idx % 2 ? 1 : -1); mz = ux * 0.3 * (z.idx % 2 ? 1 : -1);
+              sp *= 0.35;
+            }
           } else if (z.type === 'hound') {
             // pack hunting: run in, circle, take turns charging, peel away after a bite
             const los = distP < 12 && g.los(z.x, z.z, p.x, p.z) && !playerUp;

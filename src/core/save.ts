@@ -17,6 +17,8 @@ export interface Settings {
   autoFireAds: boolean;
   /** Story cutscenes (prologue, room unlocks, boss reveals) */
   cutscenes: boolean;
+  /** Player-arranged positions of touch buttons / HUD pieces: id → centre as screen fractions */
+  hudLayout: Record<string, [number, number]>;
   quality: Quality;
   showFps: boolean;
   master: number;
@@ -39,6 +41,7 @@ export const defaultSettings: Settings = {
   leftLookPad: true,
   autoFireAds: true,
   cutscenes: true,
+  hudLayout: {},
   quality: 'medium',
   showFps: false,
   master: 0.9,

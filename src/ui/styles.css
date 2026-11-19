@@ -325,3 +325,18 @@ html, body {
 .cs-caption .cs-text { font-family: var(--font-type); font-size: clamp(13px, 4.2vh, 17px); color: var(--bone); background: rgba(0,0,0,0.55); padding: 6px 12px; display: inline-block; text-shadow: 1px 1px 0 #000; min-height: 1.2em; }
 .cs-skip { position: absolute; right: calc(var(--sar) + 14px); top: calc(var(--sat) + 10px); pointer-events: auto; font-family: var(--font-display); font-size: 14px; letter-spacing: 0.15em; color: var(--bone); background: rgba(0,0,0,0.55); border: 1px solid rgba(233,225,204,0.4); padding: 10px 16px; min-height: 44px; min-width: 88px; }
 .cs-skip:active { background: var(--blood); }
+
+/* ---------- layout editor (Pause → Customize layout) ---------- */
+.layout-editor { position: absolute; inset: 0; z-index: 45; background: rgba(5, 4, 3, 0.35); touch-action: none; }
+.le-bar {
+  position: absolute; left: 50%; top: calc(var(--sat) + 8px); transform: translateX(-50%);
+  display: flex; gap: 8px; align-items: center; padding: 6px 10px;
+  background: rgba(14, 11, 9, 0.92); border: 1px solid rgba(233, 225, 204, 0.25); z-index: 2;
+}
+.le-title { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.12em; color: var(--gold); margin-right: 6px; white-space: nowrap; }
+.le-handle {
+  position: absolute; border: 2px dashed rgba(79, 240, 232, 0.85); background: rgba(79, 240, 232, 0.08);
+  touch-action: none; cursor: grab; display: flex; align-items: flex-end; justify-content: center;
+}
+.le-handle span { transform: translateY(14px); font-size: 9px; letter-spacing: 0.08em; color: var(--chip); text-shadow: 1px 1px 0 #000; white-space: nowrap; pointer-events: none; }
+.le-handle.drag { border-color: var(--gold); background: rgba(216, 169, 64, 0.15); }

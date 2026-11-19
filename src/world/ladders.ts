@@ -1,7 +1,6 @@
 /**
  * Climbable structures (Grounds watchtower). A ladder joins the ground to a raised platform.
- * The player attaches by walking into the ladder; Tethered (not hounds or Brutes) climb it one at
- * a time when the player is up top.
+ * The player attaches by walking into the ladder. The Tethered can't climb: they crowd round the foot.
  */
 export interface Ladder {
   /** foot of the ladder: the ground-side standing spot (world x/z) */
@@ -14,7 +13,7 @@ export interface Ladder {
   tx: number; tz: number;
   /** platform floor rectangle (world), inside the railing */
   rect: { x0: number; z0: number; x1: number; z1: number };
-  /** the Tethered currently climbing (one at a time) */
+  /** reserved for a climbing enemy (none climb at the moment) */
   occupant: object | null;
 }
 

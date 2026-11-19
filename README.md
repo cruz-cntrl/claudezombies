@@ -39,6 +39,7 @@ node scripts/taptest.mjs    # real touch taps through title → menu → map sel
 node scripts/movetest.mjs   # jump, vault, ladder up/down, tower platform, zombies climbing after you
 node scripts/houndtest.mjs  # how long a pack of hounds takes to down a player who doesn't fight back
 node scripts/uishots.mjs    # Grounds HUD + touch controls, and the pause screen with its map
+node scripts/layouttest.mjs # layout editor: drag buttons/HUD, reserved-corner clamp, persistence across reload
 ```
 
 Note: `?autostart=1` without `map=` still starts Ravenmoor Asylum (the existing tests are written for it); the

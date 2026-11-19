@@ -2,6 +2,7 @@ import { Input } from './input';
 import { layout, inReserved, onLayout } from '../ui/layout';
 import { save } from '../core/save';
 import { h } from '../core/dom';
+import { applyOverride } from '../ui/hudLayout';
 
 const ICONS: Record<string, string> = {
   fire: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></svg>',
@@ -79,6 +80,13 @@ export class TouchControls {
 
   get visible() { return this.root.classList.contains('on'); }
 
+  /** Buttons the layout editor can move: [id, element, label]. */
+  movable(): [string, HTMLElement, string][] {
+    const out: [string, HTMLElement, string][] = Object.entries(this.buttons).map(([k, el]) => ['btn:' + k, el, k.toUpperCase()]);
+    out.push(['hud:interact', this.interactEl, 'Buy / use prompt']);
+    return out;
+  }
+
   applySettings() {
     const s = save.settings;
     document.documentElement.style.setProperty('--bs', String(s.buttonSize === 'S' ? 0.85 : s.buttonSize === 'L' ? 1.18 : 1));
@@ -124,8 +132,9 @@ export class TouchControls {
       y = Math.max(L.sat + 40 * bs, y);
       el.style.left = x + 'px';
       el.style.top = y + 'px';
+      applyOverride(el, 'btn:' + k, 'btn');
     }
-    this.fireCenter = { x: cx, y: cy };
+    this.fireCenter = { x: parseFloat(this.buttons.fire.style.left) || cx, y: parseFloat(this.buttons.fire.style.top) || cy };
     // joystick hint sits in the lower corner of the movement side
     const hx = left ? L.W * 0.78 : L.sal + 110;
     const hy = left ? Math.min(L.H - L.sab - 90, r.y - 70) : L.H - L.sab - 90;
@@ -141,6 +150,7 @@ export class TouchControls {
     }
     // above the button arc and clear of the crosshair: free centre-right space
     this.interactEl.style.top = Math.max(L.sat + 64, Math.min(L.H * 0.3, cy - R * 0.94 - 6)) + 'px';
+    if (applyOverride(this.interactEl, 'hud:interact', 'box')) this.interactEl.style.transform = 'none';
   }
   fireCenter = { x: 0, y: 0 };
 
@@ -167,7 +177,7 @@ export class TouchControls {
     if (!this.visible) return;
     if (inReserved(e.clientX, e.clientY)) return; // reserved Netlify zone: no handlers
     const target = e.target as HTMLElement;
-    if (target.closest('.screen') || target.closest('.tut')) return;
+    if (target.closest('.screen') || target.closest('.tut') || target.closest('.layout-editor')) return;
     e.preventDefault();
     this.input.usingTouch = true;
     const btn = target.closest('[data-act]') as HTMLElement | null;

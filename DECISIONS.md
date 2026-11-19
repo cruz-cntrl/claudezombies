@@ -120,9 +120,9 @@ Choices made where the brief was ambiguous, with the reasoning.
     benches, plane wings) the same button vaults you over, but only into the same area, so paid gates can't be
     skipped. Fences, hedges and walls are never vaultable. Ladders attach when you walk into them; "forward" moves
     the way you face (toward the ladder = up, facing away or looking down = down), JUMP lets go.
-47. **The lookout tower** (Front Drive) is a 5 m platform with a roofed hut and a searchlight. While you're up there
-    the horde paths to the ladder and climbs one at a time; hounds and Brutes can't climb and circle below. It's a
-    strong spot, not a safe one.
+47. **The lookout tower** (Front Drive) is a 5 m platform with a roofed hut and a searchlight. Nothing can climb
+    the ladder after you (changed on request): the horde crowds round the foot of the ladder and waits, so it's a
+    safe perch — the cost is that ammo, perks and the round-ending kills are all down on the ground.
 48. **Hounds hunt as a pack** instead of sprinting straight in: they run in a little slower than your sprint, circle
     you at ~5.5 m, and at most two charge at once (with a snarl as the tell). After a bite they peel away. Damage
     20 (was 30), wind-up 0.45 s, cooldown 1.4 s, fewer per round with a cap on how many are loose at once. A player
@@ -133,8 +133,8 @@ Choices made where the brief was ambiguous, with the reasoning.
 50. **Collisions match the props.** Trees, statues, signposts and rocks collide (and stop bullets) as their trunk or
     base, not a whole 1 m block; lamp posts, note stands and bell posts are now solid. Grounds decor is placed last
     with a spacing check so branches, lamps and headstones never clip into walls, fences, machines or each other.
-51. **No arms on the viewmodel.** The guns, knife, grenade and tonic float on their own (`SHOW_ARMS` in
-    `weapons/viewmodel.ts`). Aiming always cancels sprinting, and the run pose blends out as you aim, so the two
+51. **Hands, not arms.** The viewmodel shows gloved hands with a short dark cuff and no forearms (the long sleeves
+    filled the screen; no hands at all looked like a floating gun). `SHOW_ARMS` in `weapons/viewmodel.ts`. Aiming always cancels sprinting, and the run pose blends out as you aim, so the two
     poses can no longer stack.
 52. **Flare pistol clarity.** Picking it up spells out the remaining steps; the easter-egg line on the HUD tracks
     them (bells n/3 → power → "fire from the red marker"); a red light pillar marks the firing spot once you're ready,
@@ -148,3 +148,7 @@ Choices made where the brief was ambiguous, with the reasoning.
     the chips set brain activity by frequency → their echoes formed a hivemind in the signal (the Chorus) →
     Director Hale is trying to master it (beacon → Warden → Mother Transmitter). See GAME_DESIGN.md → Story.
 56. **Station unlock.** Halcyon Signal Station opens at round 5 in the Asylum (existing Station players keep it).
+57. **Custom layout.** Pause → Customize layout puts a dashed handle on every touch button, the buy/use prompt and
+    each HUD piece (points, ammo, round, perks, power-ups, quest line). Drag to move; positions save as screen
+    fractions (survive rotation), are clamped inside the safe area and are pushed out of the reserved Netlify corner
+    (button labels included). Reset in the editor or in Settings.

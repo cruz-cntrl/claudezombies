@@ -37,7 +37,7 @@ const out = await page.evaluate(() => {
   log.push(`after climbing: mode=${p.mode} elev=${p.elev.toFixed(2)} pos=${p.pos.x.toFixed(2)},${p.pos.z.toFixed(2)}`);
   inp.moveY = 1; step(2); inp.moveY = 0;
   log.push(`walk on platform (rail): pos=${p.pos.x.toFixed(2)},${p.pos.z.toFixed(2)} mode=${p.mode} cam=${g.camPos.y.toFixed(2)}`);
-  // 4) zombies climb up after you
+  // 4) zombies can't climb: they gather at the foot of the ladder
   g.rounds.paused = false;
   g.zombies.spawn('zombie', 150, 'runner', { x: L.bx + 3, z: L.bz + 4 });
   g.zombies.spawn('zombie', 150, 'runner', { x: L.bx - 3, z: L.bz + 5 });
@@ -52,6 +52,7 @@ const out = await page.evaluate(() => {
   }
   log.push('zombies over 14 s: ' + states.filter((_, i) => i % 3 === 0).join(' | '));
   log.push(`player hp lost on tower: ${hpLost.toFixed(0)} downed=${p.downed}`);
+  log.push('distances to ladder foot: ' + [...g.zombies.all()].filter((z) => z.alive).map((z) => Math.hypot(z.x - L.bx, z.z - L.bz).toFixed(1)).join(', '));
   // 5) come down
   g.invuln = 1e9; for (const z of g.zombies.all()) z.active = false; g.update(1 / 60);
   p.pos.set(L.tx, 0, L.tz); p.prevPos.copy(p.pos); p.yaw = Math.PI; // facing +z (south, toward ladder opening)

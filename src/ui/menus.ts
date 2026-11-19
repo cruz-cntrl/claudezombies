@@ -7,6 +7,7 @@ import { PERKS } from '../config/perks';
 import { ECONOMY } from '../config/economy';
 import { audio } from '../audio/audioEngine';
 import type { App } from '../main';
+import { LayoutEditor } from './layoutEditor';
 
 /** Chalk-on-slate floor plan of a map, drawn from its grid layout. */
 function mapPreview(id: string): HTMLCanvasElement {
@@ -205,6 +206,7 @@ export class Menus {
       slider('Voices volume', 'voice', 0, 1, 0.05),
       h('div', { class: 'h2', style: 'margin-top:12px' }, 'Other'),
       h('div', { class: 'row' }, h('label', null, 'Tutorial'), btn('Replay tutorial', () => { s.tutorialDone = false; changed(); }, 'btn small')),
+      h('div', { class: 'row' }, h('label', null, 'Button & HUD layout'), btn('Reset layout', () => { s.hudLayout = {}; changed(); }, 'btn small')),
       h('div', { class: 'row' }, h('label', null, 'Defaults'), btn('Reset settings', () => {
         Object.assign(s, { ...defaultSettings, tutorialDone: s.tutorialDone });
         changed();
@@ -221,7 +223,8 @@ export class Menus {
       <div class="h2">Controls</div>
       <b>Touch:</b> drag the left side to move (push to the edge to sprint), swipe the right side to look. FIRE (drag from it to keep aiming), AIM, RELOAD, SWAP, MELEE, GRENADE (hold to cook, release to throw). Purchases need a short hold on the prompt.<br>
       <b>Look pad:</b> the invisible upper half of the movement side is a second look pad — drag it to aim with your other thumb while you hold FIRE, and tap it to aim down sights.<br>
-      <b>Jump / vault / climb:</b> tap JUMP to hop. Next to low cover (sandbags, gravestones, a wing) it vaults you over. Walk into a ladder to climb it — push forward to go up, back to come down, JUMP to let go. The Tethered can climb ladders too, one at a time; hounds and Brutes can’t.<br>
+      <b>Jump / vault / climb:</b> tap JUMP to hop. Next to low cover (sandbags, gravestones, a wing) it vaults you over. Walk into a ladder to climb it — push forward to go up, back to come down, JUMP to let go. Nothing that hunts you can climb — they crowd round the foot of the ladder and wait.<br>
+      <b>Your layout:</b> Pause → Customize layout lets you drag every button and HUD piece where you want it (Settings → Reset layout to undo).<br>
       <b>Keyboard + mouse:</b> WASD move, Shift sprint, Space jump / vault, mouse look (click to lock), LMB fire, RMB aim, R reload, E interact (hold), Q swap, F melee, G grenade, Esc pause.
       <div class="h2" style="margin-top:10px">Surviving</div>
       Every Tethered has a glowing chip in its skull. <b>Shoot the chip</b> and it shorts out — <b>one hit kills</b> any Tethered or hound, and pays more. Brutes cage theirs, and bosses only take heavy damage there.<br>
@@ -292,16 +295,18 @@ export class Menus {
     return h('div', { class: 'screen dim', style: 'justify-content:center' },
       h('div', { style: 'display:flex;gap:18px;align-items:center;min-height:0;flex:1' },
         h('div', { style: 'display:flex;flex-direction:column;justify-content:center' },
-          h('div', { class: 'h1' }, 'PAUSED'),
-          h('div', { class: 'txt', style: 'margin-bottom:4px' }, info),
-          goal ? h('div', { class: 'txt', style: 'margin-bottom:10px;color:var(--gold)' }, goal) : h('div', { style: 'height:6px' }),
-          h('div', { class: 'menu-col', style: 'width:min(280px,34vw)' },
+          h('div', { class: 'h1', style: 'margin:0' }, 'PAUSED'),
+          h('div', { class: 'txt', style: 'font-size:12px' }, info),
+          goal ? h('div', { class: 'txt', style: 'font-size:12px;margin-bottom:4px;color:var(--gold)' }, goal) : h('div', { style: 'height:4px' }),
+          h('div', { style: 'width:min(300px,38vw);display:flex;flex-direction:column;gap:5px' },
             this.quickSlider('Look speed', 'lookSens', 0.2, 3),
-            this.quickSlider('Aim speed (while aiming)', 'adsSens', 0.2, 3),
+            this.quickSlider('Aim speed', 'adsSens', 0.2, 3),
             btn('Resume', () => a.resume(), 'btn primary'),
-            btn('Settings', () => a.setScreen(this.settings(() => a.setScreen(this.pause())))),
-            btn('How to Play', () => a.setScreen(this.howTo(() => a.setScreen(this.pause())))),
-            btn('Quit to Menu', () => a.setScreen(this.confirmQuit())),
+            h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:5px' },
+              btn('Customize layout', () => { a.setScreen(null); a.editing = true; new LayoutEditor(a, () => { a.editing = false; a.setScreen(this.pause()); }); }, 'btn small'),
+              btn('Settings', () => a.setScreen(this.settings(() => a.setScreen(this.pause()))), 'btn small'),
+              btn('How to Play', () => a.setScreen(this.howTo(() => a.setScreen(this.pause()))), 'btn small'),
+              btn('Quit to Menu', () => a.setScreen(this.confirmQuit()), 'btn small')),
           )),
         big && g ? this.liveMap(g) : null,
       ),
@@ -314,9 +319,8 @@ export class Menus {
     const val = h('span', { style: 'width:34px;text-align:right;font-size:12px' }, s[key].toFixed(2));
     const inp = h('input', { type: 'range', min, max, step: 0.05, value: String(s[key]), style: 'flex:1;accent-color:var(--blood);height:26px;touch-action:none' }) as HTMLInputElement;
     inp.addEventListener('input', () => { s[key] = parseFloat(inp.value); val.textContent = s[key].toFixed(2); persist(); this.app.applySettings(); });
-    return h('div', { class: 'txt', style: 'display:flex;flex-direction:column;gap:0;margin-bottom:2px' },
-      h('div', { style: 'font-size:12px;opacity:.85' }, label),
-      h('div', { style: 'display:flex;align-items:center;gap:6px' }, inp, val));
+    return h('div', { class: 'txt', style: 'display:flex;align-items:center;gap:6px;height:28px' },
+      h('div', { style: 'font-size:11px;opacity:.85;width:96px;line-height:1.05' }, label), inp, val);
   }
 
   /** Pause-screen map of an open map: unlocked areas, machines, and where you are. */
@@ -363,7 +367,8 @@ export class Menus {
     x.fillStyle = '#ff3b2a'; x.strokeStyle = '#000'; x.lineWidth = 2;
     x.beginPath(); x.moveTo(0, -S * 4); x.lineTo(S * 2.6, S * 2.6); x.lineTo(-S * 2.6, S * 2.6); x.closePath(); x.stroke(); x.fill();
     x.restore();
-    c.style.cssText = 'height:min(78vh,330px);width:auto;max-width:52vw;border:2px solid rgba(233,225,204,0.25);image-rendering:pixelated;background:#0c0b0a';
+    // sized to stay clear of the reserved corner (screen padding already excludes it)
+    c.style.cssText = 'height:calc(100vh - var(--reserved-h) - var(--sab) - var(--sat) - 46px);max-height:300px;width:auto;max-width:46vw;border:2px solid rgba(233,225,204,0.25);image-rendering:pixelated;background:#0c0b0a';
     const legend = h('div', { class: 'txt', style: 'font-size:11px;opacity:.85;margin-top:4px;text-align:center', html:
       '<span style="color:#ff3b2a">▲</span> you &nbsp; <span style="color:#4ff0e8">●</span> tonic &nbsp; <span style="color:#ffd040">●</span> power &nbsp; <span style="color:#c070ff">●</span> Rewirer &nbsp; <span style="color:#e9e1cc">●</span> wall gun' });
     return h('div', { style: 'display:flex;flex-direction:column;align-items:center;min-height:0' }, c, legend);

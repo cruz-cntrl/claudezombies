@@ -73,6 +73,8 @@ export class App {
   autoQ: AutoQuality;
   fpsEl: HTMLElement;
   mapId = 'grounds';
+  /** the HUD layout editor is open (the game stays paused) */
+  editing = false;
   difficulty: DifficultyId = 'normal';
   private flyT = 0;
 
@@ -275,7 +277,7 @@ export class App {
   }
 
   resume() {
-    if (this.state !== 'paused') return;
+    if (this.state !== 'paused' || this.editing) return;
     if (window.innerHeight > window.innerWidth) return;
     this.setScreen(null);
     this.state = 'playing';

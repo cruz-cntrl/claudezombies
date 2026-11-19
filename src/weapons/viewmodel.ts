@@ -5,8 +5,8 @@ import { damp, clamp, smoothstep } from '../core/math';
 
 /** Viewmodel scale at the hip and aimed, and how much further out the gun sits when aimed. */
 const HIP_SCALE = 1.15, ADS_SCALE = 0.8, ADS_DIST = 1.45;
-/** Gloved hands + sleeves on the viewmodel. Off: the guns, knife, grenade and tonic float on their own. */
-const SHOW_ARMS = false;
+/** Gloved hands (short cuffs, no forearms) on the viewmodel. Off: the guns, knife, grenade and tonic float. */
+const SHOW_ARMS = true;
 
 export interface VmState {
   ads: number;

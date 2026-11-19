@@ -5,6 +5,7 @@ import { save } from '../core/save';
 import { PERKS, type PerkId } from '../config/perks';
 import { POWERUP_INFO, type PowerupId } from '../systems/powerups';
 import type { Game } from '../game';
+import { applyOverride } from './hudLayout';
 
 export const PERK_ICONS: Record<string, string> = {
   shield: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/>',
@@ -109,6 +110,7 @@ export class Hud {
     const r = L.reserved;
     const bs = save.settings.buttonSize === 'S' ? 0.85 : save.settings.buttonSize === 'L' ? 1.18 : 1;
     // points: top-right below safe area
+    this.points.style.left = ''; this.points.style.transform = '';
     this.points.style.right = L.sar + 16 + 'px';
     this.points.style.top = L.sat + 4 + 'px';
     // ammo: right side, above the fire-button cluster (or left cluster when left-handed)
@@ -121,7 +123,7 @@ export class Hud {
       this.ammo.style.left = L.sal + 18 + 'px'; this.ammo.style.right = '';
       this.ammo.style.textAlign = 'left';
     }
-    this.ammo.style.top = '';
+    this.ammo.style.top = ''; this.ammo.style.transform = '';
     this.ammo.style.bottom = Math.max(L.H - clusterTop + 6, 0) + 'px';
     // round counter: bottom-left (top-left beside pause when left-handed)
     const rw = 150, rh = 64;
@@ -143,11 +145,21 @@ export class Hud {
       this.perks.style.bottom = '';
     }
     this.pus.style.top = L.sat + 8 + 'px';
+    this.pus.style.left = ''; this.pus.style.right = ''; this.pus.style.transform = '';
     this.msg.style.top = L.H * 0.2 + 'px';
     this.boss.style.top = L.sat + 52 + 'px';
     this.ee.style.left = L.sal + 70 + 'px';
     this.ee.style.top = left ? L.sat + 120 + 'px' : L.sat + 14 + 'px';
+    this.ee.style.right = '';
+    // the player's own arrangement wins (Pause → Customize layout)
+    for (const [id, el] of this.movable()) applyOverride(el, id, 'box');
     this.shownRound = -1;
+  }
+
+  /** HUD pieces the layout editor can move. */
+  movable(): [string, HTMLElement, string][] {
+    return [['hud:points', this.points, 'Points'], ['hud:ammo', this.ammo, 'Ammo'], ['hud:round', this.roundBox, 'Round'],
+      ['hud:perks', this.perks, 'Perks'], ['hud:powerups', this.pus, 'Power-ups'], ['hud:ee', this.ee, 'Quest line']] as [string, HTMLElement, string][];
   }
 
   private popup(delta: number, crit: boolean) {

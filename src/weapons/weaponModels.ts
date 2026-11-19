@@ -454,9 +454,10 @@ export function getGunModel(id: string, upgraded: boolean): GunModel {
 export function buildHand(right: boolean): THREE.Group {
   const k = new Kit();
   const s = right ? 1 : -1;
-  // forearm sleeve (along +Z back toward the camera)
-  k.add('grip', cyl(0.034, 0.05, 0.7, 10), 0, 0, 0.37, 0, Math.PI / 2, 0, 0x33331f); // long enough to leave the screen when aimed
-  k.add('grip', cyl(0.042, 0.042, 0.04, 10), 0, 0, 0.05, 0, Math.PI / 2, 0, 0x3a3a26);
+  // just a short, dark glove cuff — no forearm — so the hands read without filling the screen
+  k.add('grip', cyl(0.03, 0.026, 0.11, 10), 0, 0, 0.085, 0, Math.PI / 2, 0, 0x1e1a14);
+  k.add('grip', cyl(0.037, 0.037, 0.03, 10), 0, 0, 0.04, 0, Math.PI / 2, 0, 0x2a2218);
+  k.add('grip', sphere(0.027, 10, 8), 0, 0, 0.14, 0, 0, 0, 0x1e1a14); // rounded end: no cut-off stump
   // glove palm + fingers wrapping the grip
   k.add('grip', rbox(0.05, 0.07, 0.06, 0.018), 0, 0, 0.0, 0, 0, 0, 0x3a2618);
   for (let i = 0; i < 4; i++) k.add('grip', rbox(0.018, 0.02, 0.05, 0.008), -s * 0.03, 0.025 - i * 0.017, -0.02, 0, 0, 0, 0x34220f);
