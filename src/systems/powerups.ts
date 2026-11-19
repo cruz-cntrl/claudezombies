@@ -5,6 +5,7 @@ import { bus } from '../core/events';
 import { audio } from '../audio/audioEngine';
 import { pick } from '../core/math';
 import type { Game } from '../game';
+import { groundY } from '../world/terrain';
 
 export type PowerupId = 'resupply' | 'overload' | 'double' | 'killsignal' | 'fortify';
 export const POWERUP_INFO: Record<PowerupId, { name: string; color: number; timed: boolean }> = {
@@ -87,9 +88,10 @@ export class Powerups {
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const d = this.drops[i];
       d.t += dt;
-      const y = 1.0 + Math.sin(d.t * 2.5) * 0.12;
+      const gy = groundY(d.x, d.z);
+      const y = 1.0 + Math.sin(d.t * 2.5) * 0.12 + gy;
       d.sprite.position.set(d.x, y, d.z);
-      d.ring.position.set(d.x, 0.03, d.z);
+      d.ring.position.set(d.x, 0.03 + gy, d.z);
       d.ring.scale.setScalar(1 + Math.sin(d.t * 3) * 0.1);
       const blink = d.t > POWERUPS.blinkFrom ? (Math.sin(d.t * (d.t > 22 ? 22 : 12)) > 0 ? 1 : 0.15) : 1;
       (d.sprite.material as THREE.SpriteMaterial).opacity = blink;

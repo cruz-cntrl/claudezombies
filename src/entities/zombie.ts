@@ -6,6 +6,7 @@ import type { World, WindowVisual } from '../world/mapBuilder';
 import { K } from '../world/grid';
 import { clamp, damp, wrapAngle, rand, pick } from '../core/math';
 import { audio, type Voice } from '../audio/audioEngine';
+import { groundY } from '../world/terrain';
 
 export type ZType = 'zombie' | 'hound' | 'brute';
 export type ZState = 'inactive' | 'emerge' | 'outside' | 'window' | 'climb' | 'chase' | 'attack' | 'stagger' | 'knockdown' | 'dying';
@@ -62,6 +63,8 @@ export class Zombie {
   chipFlicker = 1;
   chipStutter = 0;
   stuckT = 0;
+  /** where the stuck timer last restarted (walking 2 m away from it counts as progress) */
+  stuckX = 0; stuckZ = 0;
   bestDist = 1e9;
   vocalT = 2;
   screamed = false;
@@ -208,7 +211,7 @@ export class ZombieManager {
     z.cageHp = type === 'brute' ? Math.max(BRUTE.minCageHp, hp / BRUTE.hpMult * BRUTE.cageHpMult) : 0;
     z.chipDead = false; z.chipPop = null; z.chipStutter = 0;
     z.deathT = 0; z.stagger = 0; z.hitFlash = 0; z.cooldown = 0; z.attackT = 0; z.slamT = -1; z.enraged = false;
-    z.stuckT = 0; z.bestDist = 1e9; z.vocalT = rand(0.5, 3); z.screamed = false; z.lunge = 0; z.boss = false;
+    z.stuckT = 0; z.stuckX = z.x; z.stuckZ = z.z; z.bestDist = 1e9; z.vocalT = rand(0.5, 3); z.screamed = false; z.lunge = 0; z.boss = false;
     z.vx = z.vz = 0; z.y = 0;
     const speeds = ZOMBIE.speeds;
     z.speed = (type === 'hound' ? HOUND.speed : type === 'brute' ? BRUTE.speed : speeds[tier] * rand(0.92, 1.08)) * this.host.difficultySpeed;
@@ -377,7 +380,9 @@ export class ZombieManager {
           }
           // stuck detection
           const fd = flow.distanceAt(z.x, z.z);
-          if (fd < z.bestDist - 5) { z.bestDist = fd; z.stuckT = 0; } else z.stuckT += dt;
+          // progress = closing the path distance OR actually covering ground (a walker following a
+          // kiting player on an open map never closes the distance, but it isn't stuck)
+          if (fd < z.bestDist - 5 || Math.hypot(z.x - z.stuckX, z.z - z.stuckZ) > 2) { z.bestDist = Math.min(z.bestDist, fd); z.stuckT = 0; z.stuckX = z.x; z.stuckZ = z.z; } else z.stuckT += dt;
           if (z.stuckT > ZOMBIE.stuckRespawnSeconds && distP > 4) this.respawnElsewhere(z);
           break;
         }
@@ -392,7 +397,7 @@ export class ZombieManager {
             z.attackHit = true;
             if (z.type === 'brute') {
               this.host.fx.dust(z.x + Math.sin(z.yaw) * 1.2, 0.05, z.z + Math.cos(z.yaw) * 1.2, 0, 1, 0, 30, 0x6a6058);
-              this.host.fx.decal(2, z.x + Math.sin(z.yaw) * 1.2, 0.01, z.z + Math.cos(z.yaw) * 1.2, 0, 1, 0, 2.4);
+              this.host.fx.decal(2, z.x + Math.sin(z.yaw) * 1.2, 0.01 + groundY(z.x + Math.sin(z.yaw) * 1.2, z.z + Math.cos(z.yaw) * 1.2), z.z + Math.cos(z.yaw) * 1.2, 0, 1, 0, 2.4);
               audio.play('z_bruteSlam', { pos: { x: z.x, y: 0.3, z: z.z }, vol: 1, priority: 8 });
               this.host.shake(Math.max(0, 1 - distP / 10) * 1.2);
               if (distP < BRUTE.slamRadius && targetable) this.host.damagePlayer(BRUTE.slamDamage * (1 - distP / BRUTE.slamRadius * 0.5), z.x, z.z);
@@ -423,13 +428,15 @@ export class ZombieManager {
           if (z.chipPop) {
             const c = z.chipPop;
             c.vy -= 9.8 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
-            if (c.y < 0.03) { c.y = 0.03; c.vy *= -0.3; c.vx *= 0.6; c.vz *= 0.6; }
+            const gy = groundY(c.x, c.z);
+            if (c.y < gy + 0.03) { c.y = gy + 0.03; c.vy *= -0.3; c.vx *= 0.6; c.vz *= 0.6; }
             c.t += dt;
           }
           if (z.hatPop) {
             const c = z.hatPop;
             c.vy -= 9.8 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
-            if (c.y < 0.06) { c.y = 0.06; c.vy *= -0.25; c.vx *= 0.5; c.vz *= 0.5; }
+            const gy = groundY(c.x, c.z);
+            if (c.y < gy + 0.06) { c.y = gy + 0.06; c.vy *= -0.25; c.vx *= 0.5; c.vz *= 0.5; }
             c.t += dt;
           }
           if (z.deathT > 0.18) {
@@ -608,7 +615,7 @@ export class ZombieManager {
     const death = z.type === 'hound' ? 'z_houndDeath' : z.type === 'brute' ? 'z_bruteDeath' : 'z_death';
     audio.play(death, { pos: { x: z.x, y: 1.5, z: z.z }, bus: 'voice', vol: 0.9, priority: 5 });
     audio.play('imp_bodyfall', { pos: { x: z.x, y: 0.2, z: z.z }, vol: 0.7, delay: z.type === 'brute' ? 0.9 : 0.6, priority: 3 });
-    fx.decal(3, z.x + dirX * 0.6, 0.012, z.z + dirZ * 0.6, 0, 1, 0, 1.0 + Math.random() * 0.6);
+    fx.decal(3, z.x + dirX * 0.6, 0.012 + groundY(z.x + dirX * 0.6, z.z + dirZ * 0.6), z.z + dirZ * 0.6, 0, 1, 0, 1.0 + Math.random() * 0.6);
     this.host.onKilled(z);
   }
 
@@ -789,7 +796,7 @@ export class ZombieManager {
     const twist = sp[3] + (z.state === 'dying' ? clamp(z.deathT * 2, 0, 1) * z.deathTwist : 0);
     // hierarchy
     const root = _m[0], pelvis = _m[1], torso = _m[2], head = _m[3], tmp = _m[4], ua = _m[5], la = _m[6], ul = _m[7];
-    P.local(root, IDENT, z.x, z.y, z.z, rootPitch, z.yaw + (z.state === 'dying' ? twist * 0.6 : 0), z.state === 'dying' ? twist * 0.5 * fallK(z) : 0, s);
+    P.local(root, IDENT, z.x, z.y + groundY(z.x, z.z), z.z, rootPitch, z.yaw + (z.state === 'dying' ? twist * 0.6 : 0), z.state === 'dying' ? twist * 0.5 * fallK(z) : 0, s);
     P.local(pelvis, root, 0, hipY, 0, 0, 0, bodyRoll * 0.5, z.bulk, 1, 1);
     const torsoScale = (z.type === 'brute' ? 1.25 : 1) * z.bulk;
     // pelvis colour = trousers/clothing
@@ -884,7 +891,7 @@ export class ZombieManager {
     if (z.state === 'dying') { const f = clamp(z.deathT * 3, 0, 1); roll = f * 1.5; bodyY = 0.55 - f * 0.38 - clamp((z.deathT - 5.2) / 1.2, 0, 1) * 0.3; }
     if (z.state === 'emerge') { bodyY = 0.55 * clamp(z.stateT / 0.6, 0, 1); }
     const root = _m[0], body = _m[1], head = _m[2], up = _m[3], low = _m[4], tmp = _m[5];
-    P.local(root, IDENT, z.x, 0, z.z, 0, z.yaw, 0);
+    P.local(root, IDENT, z.x, groundY(z.x, z.z), z.z, 0, z.yaw, 0);
     P.local(body, root, 0, bodyY, 0, pitch + Math.sin(ph * 2) * 0.05 * gal, 0, roll);
     _col.copy(z.skin);
     this.setInst(D, 'hBody', i, body, _col);

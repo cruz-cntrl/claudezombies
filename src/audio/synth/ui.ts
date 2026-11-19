@@ -73,7 +73,8 @@ export type UiSound =
   | 'radioLaugh' | 'drink' | 'heartbeat' | 'hurt' | 'downed' | 'puSpawn' | 'puGrab' | 'puResupply' | 'puOverload'
   | 'puDouble' | 'puKill' | 'puFortify' | 'puEnd' | 'rewirer' | 'noteFound' | 'valve' | 'tune' | 'eeStep' | 'step'
   | 'grenadePin' | 'grenadeBounce' | 'perkJingle_ironhide' | 'perkJingle_quickhands' | 'perkJingle_secondwind'
-  | 'perkJingle_fleetfoot' | 'perkJingle_rapidfire' | 'perkJingle_packmule' | 'musicBox' | 'tape' | 'keypad' | 'alarm';
+  | 'perkJingle_fleetfoot' | 'perkJingle_rapidfire' | 'perkJingle_packmule' | 'musicBox' | 'tape' | 'keypad' | 'alarm'
+  | 'graveBell' | 'flare';
 
 export function renderUi(kind: UiSound, v: number): Promise<AudioBuffer> {
   if (kind.startsWith('perkJingle_')) return renderJingle(kind.slice(11));
@@ -81,7 +82,7 @@ export function renderUi(kind: UiSound, v: number): Promise<AudioBuffer> {
     powerOn: 3.5, gateOpen: 2.2, debris: 2.4, boxOpen: 1.6, boxJingle: 4.2, radioLaugh: 2.6, drink: 1.6, heartbeat: 0.9,
     downed: 2.0, puSpawn: 1.2, puGrab: 1.0, puResupply: 2.0, puOverload: 2.0, puDouble: 2.0, puKill: 2.6, puFortify: 2.0,
     puEnd: 1.2, rewirer: 4.5, noteFound: 1.2, valve: 0.8, tune: 0.4, eeStep: 2.5, musicBox: 3.0, tape: 1.2, alarm: 2.5, chalk: 0.5,
-    purchase: 1.0, hurt: 0.5,
+    purchase: 1.0, hurt: 0.5, graveBell: 3.6, flare: 3.2,
   };
   return render((durs[kind] ?? 0.4) + 0.05, (ctx, out) => {
     const t = 0.005;
@@ -283,6 +284,30 @@ export function renderUi(kind: UiSound, v: number): Promise<AudioBuffer> {
         thud(ctx, out, t, 240, 100, 0.04, 0.6);
         ping(ctx, out, t, 1200 + r(4) * 400, 8, 0.3, 0.05);
         break;
+      case 'graveBell': {
+        // a small cracked coffin bell, rung three times: inharmonic partials, a buzzing crack
+        for (let k = 0; k < 3; k++) {
+          const tt = t + k * 0.42 + r(k) * 0.05;
+          for (const [m, a] of [[1, 0.5], [2.41, 0.28], [3.88, 0.16], [5.4, 0.09]] as const) {
+            const o = osc(ctx, 'sine', 880 * m * (1 + (r(k + m) - 0.5) * 0.004), tt, 2.6);
+            const g = gain(ctx, 0); perc(g.gain, tt, a * (1 - k * 0.15), 0.002, 1.6 / m + 0.4);
+            chain(o, g, out);
+          }
+          burst(ctx, out, tt, 'bandpass', 3200, 3, 0.05, 0.12, 'white');
+        }
+        break;
+      }
+      case 'flare': {
+        // pistol pop, then the hiss of a magnesium flare climbing away
+        thud(ctx, out, t, 180, 60, 0.12, 0.9);
+        burst(ctx, out, t, 'bandpass', 900, 1, 0.08, 0.6, 'white');
+        const hs = noiseSrc(ctx, 'white', t + 0.05, 3.0);
+        const hf = filt(ctx, 'bandpass', 2600, 0.7);
+        hf.frequency.setValueAtTime(1800, t + 0.05); hf.frequency.linearRampToValueAtTime(5200, t + 3.0);
+        const hg = gain(ctx, 0); hg.gain.setValueAtTime(0.0001, t); hg.gain.linearRampToValueAtTime(0.35, t + 0.2); hg.gain.linearRampToValueAtTime(0.0001, t + 3.0);
+        chain(hs, hf, hg, out);
+        break;
+      }
       case 'step': {
         thud(ctx, out, t, 90 + r(5) * 30, 50, 0.05, 0.3);
         burst(ctx, out, t, 'bandpass', 500 + r(6) * 400, 1, 0.06, 0.45, 'pink');

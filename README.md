@@ -17,7 +17,7 @@ npm run preview    # serve dist/ on http://localhost:4173
 ```
 
 Useful URL flags: `?debug=1` (FPS/draw-call readout, outlines the reserved Netlify zone in red),
-`?safe=1` (simulate iPhone 16 landscape safe-area insets), `?autostart=1&map=station&difficulty=hardened`
+`?safe=1` (simulate iPhone 16 landscape safe-area insets), `?autostart=1&map=grounds&difficulty=hardened`
 (skip menus), `?quality=low|medium|high`, `?screen=menu`, `?tutorial=1`, `?cutscenes=1` (story scenes are off in autostart test mode unless set).
 
 Tests and checks (need `npx playwright install webkit` once, and `npm run preview` running):
@@ -31,7 +31,15 @@ npm run test:bot           # faster-than-real-time bot plays from the start room
 npm run check:audio        # renders every sound and reports spectrum, loudness and "phone speaker" loudness
 npm run check:cpu          # JS cost per frame at round 30 with a full horde
 npm run check:viewmodels   # every gun at hip / ADS / mid-reload → shots/vm_*.png
+node scripts/adscheck.mjs   # hip vs aimed view of each gun with the ADS reticle → shots/ads_*.png
+node scripts/mapviews.mjs grounds   # tour of the Grounds (incl. aerial) with draw calls / triangles per view
+node scripts/eegrounds.mjs  # Grounds easter egg end to end (flare → bells → vigil → Lights Out)
+node scripts/cutscenecheck.mjs grounds   # frames from the Grounds prologue + establishing shot
+node scripts/taptest.mjs    # real touch taps through title → menu → map select (ghost-click regression)
 ```
+
+Note: `?autostart=1` without `map=` still starts Ravenmoor Asylum (the existing tests are written for it); the
+normal menu starts on the Grounds.
 
 ## Deploy to Netlify
 
@@ -63,6 +71,11 @@ All numbers live in `src/config/` — no logic changes needed:
 
 Map layouts are authored in `src/world/maps/*.ts` with a small `LayoutBuilder` (rooms, doors, windows and named
 markers for wall-buys, perks, crates, the Rewirer, power, easter-egg anchors).
+
+The Grounds (`maps/grounds.ts`) adds a few knobs at the top of the file: `KS` (layout stretch — raise it for a
+bigger estate), the `terrain()` function (hill heights), `skyLight` / `fogDensity` (how bright the dusk is),
+`unlock` on `maps/ravenmoor.ts` (which round on the Grounds opens the Asylum), and `ADS_SCALE` / `ADS_DIST` in
+`weapons/viewmodel.ts` (how small the gun gets when aiming).
 
 ## Code map
 

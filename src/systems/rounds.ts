@@ -8,6 +8,7 @@ import { randInt, rand, pick } from '../core/math';
 import { audio } from '../audio/audioEngine';
 import type { Game } from '../game';
 import type { WindowVisual } from '../world/mapBuilder';
+import { groundY } from '../world/terrain';
 
 type SpawnPoint = { window?: WindowVisual; x?: number; z?: number; dist: number };
 
@@ -151,7 +152,7 @@ export class Rounds {
     // lightning strike
     this.g.fx.flash(cell.x, 2.5, cell.z, 40, 0xa0c0ff);
     this.g.fx.electric(cell.x, 0.5, cell.z, 20, 0xff6050);
-    this.g.fx.decal(2, cell.x, 0.012, cell.z, 0, 1, 0, 1.4);
+    this.g.fx.decal(2, cell.x, 0.012 + groundY(cell.x, cell.z), cell.z, 0, 1, 0, 1.4);
     audio.play('imp_arcZap', { pos: { x: cell.x, y: 1, z: cell.z }, vol: 1, priority: 6 });
     return true;
   }

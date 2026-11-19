@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GeoBatch, M, box, rbox, cyl, sphere, torus, tube, lathe } from '../render/geometryKit';
 import type { RNG } from '../core/math';
 import type { PropTheme } from './mapTypes';
+import { gravestone, hedge, conifer, bareOak, haybale, wheelbarrow, woodpile, rock, stump, statue, crossMarker, barbedWire, signpost } from './outdoorProps';
 
 /**
  * Procedural prop library. Every prop is built in local space facing +Z, centred on its
@@ -190,7 +191,7 @@ export const sandbags: Build = (b, base, r) => {
   for (let row = 0; row < 3; row++) for (let i = 0; i < 3; i++) {
     const x = -0.36 + i * 0.36 + (row % 2) * 0.18 - 0.09;
     if (x > 0.45) continue;
-    b.add('plain:fabric', rbox(0.4, 0.17, 0.3, 0.07, 2), at(base, x, 0.09 + row * 0.16, (r() - 0.5) * 0.05, (r() - 0.5) * 0.3), pickC(r, [0x6a5e44, 0x5e543c, 0x726650]));
+    b.add('plain:fabric', rbox(0.4, 0.17, 0.3, 0.07, 1), at(base, x, 0.09 + row * 0.16, (r() - 0.5) * 0.05, (r() - 0.5) * 0.3), pickC(r, [0x6a5e44, 0x5e543c, 0x726650]));
   }
 };
 
@@ -432,6 +433,13 @@ const THEMES: Record<PropTheme, Weighted> = {
   roof: [[roofVent, 3], [sandbags, 3], [crate, 2], [barrel, 1]],
   corridor: [[filingCabinet, 2], [locker, 2], [bench, 1], [crate, 1], [barrel, 1]],
   test: [[crate, 2], [barrel, 2], [filingCabinet, 1], [desk, 1], [sandbags, 1]],
+  // Ravenmoor Grounds (outdoor)
+  drive: [[bareOak, 3], [conifer, 2], [crate, 1], [barrel, 1], [statue, 1], [signpost, 1]],
+  garden: [[conifer, 3], [statue, 2], [bareOak, 2], [hedge, 2], [bench, 1]],
+  graveyard: [[bareOak, 3], [gravestone, 3], [statue, 2], [conifer, 1], [deadTree, 1]],
+  field: [[haybale, 3], [bareOak, 2], [crate, 2], [barrel, 2], [rock, 2], [deadTree, 1]],
+  yard: [[woodpile, 3], [haybale, 2], [barrel, 2], [crate, 2], [conifer, 1], [stump, 1]],
+  chapel: [[bareOak, 3], [conifer, 2], [statue, 1], [crossMarker, 1], [rock, 1]],
 };
 
 export function themeProp(theme: PropTheme, r: RNG): Build {
@@ -456,6 +464,12 @@ export const DOUBLE_PROPS: Partial<Record<PropTheme, Build[]>> = {
 /** Low cover props ('o' cells): block movement, not bullets. */
 export const LOW_PROPS: Partial<Record<PropTheme, Build[]>> = {
   courtyard: [sandbags, bench],
+  drive: [sandbags, bench, rock],
+  garden: [bench, hedge, rock],
+  graveyard: [gravestone, gravestone, gravestone, crossMarker],
+  field: [barbedWire, sandbags, rock, stump],
+  yard: [wheelbarrow, stump, sandbags, rock],
+  chapel: [gravestone, crossMarker, bench, rock],
   roof: [sandbags],
   dock: [pallet, sandbags],
 };

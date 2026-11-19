@@ -10,6 +10,7 @@ import { audio } from '../audio/audioEngine';
 import { bus } from '../core/events';
 import { jagged } from '../render/fx';
 import { buildGrenade } from '../weapons/weaponModels';
+import { groundY, groundHitT } from '../world/terrain';
 
 interface Projectile {
   active: boolean;
@@ -86,7 +87,7 @@ export class Combat implements CombatHost {
       }
     }
     if (d.y < -1e-4) {
-      const tf = -o.y / d.y;
+      const tf = groundHitT(o.x, o.y, o.z, d.x, d.y, d.z);
       if (tf < t) { t = tf; nx = 0; ny = 1; nz = 0; surface = 'floor'; }
     } else if (d.y > 1e-4) {
       const ceil = this.g.world.ceilingAt(o.x, o.z);
@@ -215,7 +216,7 @@ export class Combat implements CombatHost {
       audio.play('imp_explosion', { pos: { x, y, z }, vol: 0.45, rate: 1.4, priority: 4 });
     } else {
       fx.explosion(x, y, z, radius / 4.5);
-      fx.decal(2, x, 0.012, z, 0, 1, 0, radius * 0.7);
+      fx.decal(2, x, 0.012 + groundY(x, z), z, 0, 1, 0, radius * 0.7);
       audio.play('imp_explosion', { pos: { x, y, z }, vol: 1, priority: 9, refDist: 6, reverb: 0.5 });
       const p = this.g.player.pos;
       const d = Math.hypot(p.x - x, p.z - z);
@@ -291,7 +292,8 @@ export class Combat implements CombatHost {
         if (grid.blocksShot(Math.floor(nx), Math.floor(p.pos.z))) { p.vel.x *= -0.45; bounced = true; } else p.pos.x = nx;
         if (grid.blocksShot(Math.floor(p.pos.x), Math.floor(nz))) { p.vel.z *= -0.45; bounced = true; } else p.pos.z = nz;
         const ceil = this.g.world.ceilingAt(p.pos.x, p.pos.z);
-        if (ny < 0.05) { p.pos.y = 0.05; p.vel.y *= -0.35; p.vel.x *= 0.65; p.vel.z *= 0.65; if (Math.abs(p.vel.y) > 0.8) bounced = true; }
+        const gy = groundY(p.pos.x, p.pos.z);
+        if (ny < gy + 0.05) { p.pos.y = gy + 0.05; p.vel.y *= -0.35; p.vel.x *= 0.65; p.vel.z *= 0.65; if (Math.abs(p.vel.y) > 0.8) bounced = true; }
         else if (isFinite(ceil) && ny > ceil - 0.05) { p.pos.y = ceil - 0.05; p.vel.y *= -0.4; bounced = true; }
         else p.pos.y = ny;
         if (bounced) {
@@ -328,7 +330,8 @@ export class Combat implements CombatHost {
       const h = 0.045;
       vy -= 9.8 * h;
       x += vx * h; y += vy * h; z += vz * h;
-      if (y < 0.05 || grid.blocksShot(Math.floor(x), Math.floor(z))) { n++; this.previewPos[n * 3] = x; this.previewPos[n * 3 + 1] = Math.max(0.05, y); this.previewPos[n * 3 + 2] = z; n++; break; }
+      const gy = groundY(x, z);
+      if (y < gy + 0.05 || grid.blocksShot(Math.floor(x), Math.floor(z))) { n++; this.previewPos[n * 3] = x; this.previewPos[n * 3 + 1] = Math.max(gy + 0.05, y); this.previewPos[n * 3 + 2] = z; n++; break; }
     }
     this.previewLine.geometry.setDrawRange(0, n);
     (this.previewLine.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;

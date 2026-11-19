@@ -147,6 +147,7 @@ export class Music {
     for (const k of ['roundStart', 'roundEnd', 'special', 'gameOver', 'bossStart', 'victory'] as Stinger[]) audio.register('stg_' + k, 1, () => renderStinger(k));
     audio.register('song_ravenmoor', 1, () => renderSong('ravenmoor'));
     audio.register('song_station', 1, () => renderSong('station'));
+    audio.register('song_grounds', 1, () => renderSong('grounds'));
   }
 
   playMenu() {

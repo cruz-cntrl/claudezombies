@@ -3,6 +3,7 @@ import type { Grid } from '../world/grid';
 import type { Input } from '../input/input';
 import { clamp, damp } from '../core/math';
 import { PERK_TUNING, type PerkId } from '../config/perks';
+import { groundY } from '../world/terrain';
 
 /**
  * First-person player: movement with grid collision, sprint stamina, health + regen,
@@ -113,10 +114,11 @@ export class Player {
     const bob = this.bobAmount * (1 - this.ads * 0.85);
     const by = Math.abs(Math.sin(this.bobPhase)) * 0.045 * bob;
     const bx = Math.cos(this.bobPhase) * 0.025 * bob;
-    const sh = this.shake * this.shake;
+    // aimed: keep the view (and the reticle) on the bullet path
+    const sh = this.shake * this.shake * (1 - this.ads * 0.85);
     const shx = (Math.sin(time * 61) + Math.sin(time * 37)) * 0.02 * sh;
     const shy = (Math.sin(time * 53) + Math.sin(time * 29)) * 0.02 * sh;
-    cam.position.set(x + Math.cos(this.yaw) * bx, this.eye + by, z - Math.sin(this.yaw) * bx);
+    cam.position.set(x + Math.cos(this.yaw) * bx, this.eye + by + groundY(x, z), z - Math.sin(this.yaw) * bx);
     cam.rotation.order = 'YXZ';
     cam.rotation.y = this.yaw + this.recoilYaw + shx;
     cam.rotation.x = this.pitch + this.recoilPitch + shy;

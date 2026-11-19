@@ -15,6 +15,15 @@ interface SongSpec {
 }
 
 const SONGS: Record<string, SongSpec> = {
+  // "Bells Under the Light" — D minor, a slow stomp that keeps breaking into double time
+  grounds: {
+    bpm: 100, key: 26,
+    riff: [0, -1, 0, 7, 5, -1, 3, 5],
+    verseChords: [0, 0, 10, 10, 8, 8, 7, 7],
+    chorusChords: [0, 3, 10, 5, 0, 3, 8, 7],
+    melody: [[7, 0, 2], [8, 2, 1], [7, 3, 1], [5, 4, 4], [3, 8, 2], [5, 10, 2], [7, 12, 4], [12, 16, 2], [10, 18, 1], [8, 19, 1], [7, 20, 4], [5, 24, 2], [3, 26, 2], [2, 28, 4]],
+    sections: ['intro', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'chorus', 'outro'],
+  },
   // "Dead Air" — E minor, heavy and swung
   ravenmoor: {
     bpm: 92, key: 28,

@@ -19,6 +19,8 @@ import { registerSounds, ESSENTIAL } from './audio/catalog';
 import { Menus } from './ui/menus';
 import { Tutorial } from './ui/tutorial';
 import { Music } from './audio/music/score';
+import { installTapGuard, bumpScreenEpoch } from './ui/tap';
+import { groundY } from './world/terrain';
 
 registerSounds();
 
@@ -70,7 +72,7 @@ export class App {
   screens = document.getElementById('screens')!;
   autoQ: AutoQuality;
   fpsEl: HTMLElement;
-  mapId = 'ravenmoor';
+  mapId = 'grounds';
   difficulty: DifficultyId = 'normal';
   private flyT = 0;
 
@@ -111,7 +113,7 @@ export class App {
     this.showLoading('Preparing');
     this.loop.start();
     const mapParam = params.get('map');
-    const first = mapParam && MAPS[mapParam] ? mapParam : 'ravenmoor';
+    const first = mapParam && MAPS[mapParam] ? mapParam : params.get('autostart') === '1' ? 'ravenmoor' : 'grounds';
     this.mapId = first;
     let audioF = 0, mapF = 0, mapL = 'Preparing';
     const report = () => this.progress(mapF * 0.75 + audioF * 0.25, audioF < 1 && mapF >= 1 ? 'Recording sounds' : mapL);
@@ -168,6 +170,7 @@ export class App {
   }
 
   setScreen(el: HTMLElement | null) {
+    bumpScreenEpoch();
     this.screens.innerHTML = '';
     this.loadingEls = null;
     if (el) this.screens.appendChild(el);
@@ -215,7 +218,14 @@ export class App {
   }
 
   // ------------------------------------------------------------ session
+  private busy = false;
   async startGame(mapId: string, diff: DifficultyId) {
+    if (this.busy) return;
+    this.busy = true;
+    try { await this.startGameInner(mapId, diff); } finally { this.busy = false; }
+  }
+
+  private async startGameInner(mapId: string, diff: DifficultyId) {
     this.mapId = mapId;
     this.difficulty = diff;
     this.showLoading('Deploying');
@@ -334,6 +344,12 @@ export class App {
   }
 
   async quitToMenu() {
+    if (this.busy) return;
+    this.busy = true;
+    try { await this.quitInner(); } finally { this.busy = false; }
+  }
+
+  private async quitInner() {
     this.tutorial?.dispose();
     this.tutorial = null;
     if (this.game) { this.game.dispose(); this.game = null; }
@@ -398,6 +414,7 @@ export class App {
     const sx = g.start.i + 0.5, sz = g.start.j + 0.5;
     const t = this.flyT;
     cam.position.set(sx + Math.sin(t) * 2.2, 1.7 + Math.sin(t * 0.7) * 0.15, sz + Math.cos(t * 0.8) * 2.2);
+    cam.position.y += groundY(cam.position.x, cam.position.z);
     cam.rotation.order = 'YXZ';
     cam.rotation.set(-0.05 + Math.sin(t * 0.5) * 0.05, t * 0.9, 0);
     cam.fov = this.r.baseFov;
@@ -409,6 +426,7 @@ export class App {
 
 // ---------------------------------------------------------------- boot
 blockGestures();
+installTapGuard();
 if (DEBUG) document.body.classList.add('debug');
 if (params.get('safe') === '1') document.documentElement.classList.add('sim-safe');
 computeLayout();

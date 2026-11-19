@@ -7,7 +7,8 @@ export type Surface =
 
 export type PropTheme =
   | 'reception' | 'ward' | 'theater' | 'boiler' | 'courtyard' | 'library'
-  | 'dock' | 'assembly' | 'generator' | 'control' | 'roof' | 'corridor' | 'test';
+  | 'dock' | 'assembly' | 'generator' | 'control' | 'roof' | 'corridor' | 'test'
+  | 'drive' | 'garden' | 'graveyard' | 'field' | 'yard' | 'chapel';
 
 export type ReverbType = 'hall' | 'room' | 'metal' | 'outdoor';
 
@@ -67,7 +68,20 @@ export interface MapDef {
   doorStyle: 'gate' | 'shutter';
   /** Map-specific extra geometry / setpieces, run during build. */
   decorate?: (ctx: import('./mapBuilder').BuildContext) => void;
-  sky: 'night' | 'storm';
+  sky: 'night' | 'storm' | 'dusk';
+  /**
+   * Outdoor maps: raw ground height (metres) at a cell-corner position. The builder flattens it
+   * around machines, windows, doors and solid set-pieces, then warps all static geometry onto it.
+   */
+  terrain?: (x: number, z: number) => number;
+  /** Open-air map settings: estate-wall height, fence-gate height, no perimeter cliff walls. */
+  outdoor?: { wallHeight: number; gateTop: number };
+  /** A landmark the opening cutscene frames (e.g. the Grounds' signal-tower beacon) */
+  landmark?: { x: number; y: number; z: number };
+  /** Best round needed on another map before this one unlocks */
+  unlock?: { map: string; round: number };
+  /** Sky light baked into every surface: hemisphere fill from above + a low directional glow. */
+  skyLight?: { top: number; bottom: number; glow: number; glowDir: [number, number, number] };
   chipColor: number;
   /** Music easter-egg track key */
   songId: string;
@@ -82,5 +96,7 @@ export interface MapDef {
  *  'c' supply crate spot          'r' Rewirer           's' power switch
  *  'e' easter-egg anchor          'l' extra light        'o' low cover prop (blocks movement, not bullets)
  *  'q' solid named set-piece (built by the map's decorate hook / easter-egg system)
+ *  '%' solid, not drawn (the map's decorate hook builds it: buildings, wrecks, tombs)
+ *  'f' fence / hedge line: blocks movement, not bullets or sight (drawn by decorate)
  */
 export const LEGEND_INFO = true;

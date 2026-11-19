@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Grid, K, type Marker, type WindowCell } from './grid';
 import type { MapDef, Surface, ZoneDef } from './mapTypes';
-import { GeoBatch, M, box, rbox, cyl, sphere, torus } from '../render/geometryKit';
+import { GeoBatch, M, box, rbox, cyl, sphere, torus, cone } from '../render/geometryKit';
 import { MatLib } from '../render/matLib';
 import { LightBaker, type BakeLight } from '../render/lightingBake';
 import { generateSurfaces, surfaceScale } from '../render/proceduralTextures';
@@ -10,6 +10,7 @@ import { mulberry32, type RNG } from '../core/math';
 import { themeProp, DOUBLE_PROPS, LOW_PROPS, lightCage, bookshelf, lampPost } from './props';
 import { createSky } from './sky';
 import { LIGHTING } from '../config/lighting';
+import { HeightField, setTerrain, getTerrain, groundY } from './terrain';
 
 export interface PracticalLight {
   x: number; y: number; z: number;
@@ -53,6 +54,12 @@ export interface BuildContext {
   rng: RNG;
   lights: BakeLight[];
   addLight: (x: number, y: number, z: number, color: number, intensity: number, radius: number, flicker?: number, fixture?: 'cage' | 'none') => void;
+  /** Per-frame animation for map set-pieces (beacons, fires). */
+  onUpdate: (fn: (dt: number, time: number) => void) => void;
+  /** World root, for unbaked set-piece meshes (beacons, distant silhouettes) */
+  group: THREE.Group;
+  /** Publish a set-piece handle for gameplay systems (e.g. the easter egg dims the beacon) */
+  expose: (name: string, obj: unknown) => void;
   markers: (ch: string) => Marker[];
   zone: (i: number, j: number) => ZoneDef | null;
   registerMaterial: (key: string, mat: THREE.Material) => void;
@@ -76,6 +83,11 @@ export class World {
   private pool: THREE.PointLight[] = [];
   private bakeLights: BakeLight[] = [];
   private wallHeight: Float32Array;
+  private updaters: ((dt: number, time: number) => void)[] = [];
+  /** Named set-piece handles published by the map's decorate hook */
+  readonly setpieces = new Map<string, unknown>();
+  /** Ground height field (outdoor maps only) */
+  terrain: HeightField | null = null;
   readonly rng: RNG;
 
   constructor(readonly def: MapDef) {
@@ -110,6 +122,7 @@ export class World {
     for (const k of ['surf:wood', 'surf:metal', 'surf:riveted', 'surf:concrete', 'surf:stone', 'surf:water']) batch.uvScale[k] = surfaceScale(k.slice(5) as Surface);
     const rng = this.rng;
 
+    this.buildTerrain();
     this.computeWallHeights();
     onProgress(0.47, 'Raising walls');
     this.buildStructure(batch);
@@ -123,6 +136,9 @@ export class World {
       markers: (ch) => this.markers(ch),
       zone: (i, j) => this.zoneDef(i, j),
       registerMaterial: (key, mat) => this.matLib.register(key, mat),
+      onUpdate: (fn) => this.updaters.push(fn),
+      group: this.group,
+      expose: (name, obj) => this.setpieces.set(name, obj),
     };
     this.autoLights(ctx);
     onProgress(0.52, 'Furnishing');
@@ -132,16 +148,21 @@ export class World {
 
     // ---- bake
     onProgress(0.6, 'Baking light');
-    this.baker = new LightBaker(g, this.bakeLights, (x, z, out) => this.ambientAt(x, z, out), this.ceilingAt);
+    this.baker = new LightBaker(g, this.bakeLights, (x, z, out) => this.ambientAt(x, z, out), this.ceilingAt, def.skyLight);
     const merged = batch.finalize();
     let n = 0;
     for (const [key, geo] of merged) {
+      this.warp(geo);
       if (key !== 'glow') this.baker.bakeGeometry(geo);
-      const mesh = new THREE.Mesh(geo, this.matLib.get(key));
-      mesh.matrixAutoUpdate = false;
-      mesh.name = key;
-      if (key === 'surf:water') { mesh.renderOrder = 2; this.waters.push(mesh); }
-      this.group.add(mesh);
+      // big open maps: split heavy layers into spatial chunks so off-screen parts are culled
+      const pieces = def.outdoor && geo.index && geo.index.count > 45000 ? splitChunks(geo, 48) : [geo];
+      for (const pg of pieces) {
+        const mesh = new THREE.Mesh(pg, this.matLib.get(key));
+        mesh.matrixAutoUpdate = false;
+        mesh.name = key;
+        if (key === 'surf:water') { mesh.renderOrder = 2; this.waters.push(mesh); }
+        this.group.add(mesh);
+      }
       onProgress(0.6 + (++n / merged.size) * 0.25, 'Baking light');
       await tick();
     }
@@ -173,6 +194,56 @@ export class World {
     onProgress(1, 'Ready');
   }
 
+  // ------------------------------------------------------------------ terrain
+  /**
+   * Outdoor maps: sample the map's height function at cell corners, flattened to 0 around
+   * machines, wall-buys, windows, doors, story anchors and solid set-pieces so those sit level.
+   */
+  private buildTerrain() {
+    const def = this.def, g = this.grid;
+    if (!def.terrain) { this.terrain = null; setTerrain(null); return; }
+    // distance (cells) to the nearest "keep flat" cell, by multi-source BFS
+    const W = g.w, H = g.h;
+    const dist = new Float32Array(W * H).fill(1e9);
+    const q: number[] = [];
+    const seed = (i: number, j: number) => { if (g.inBounds(i, j) && dist[j * W + i] > 0) { dist[j * W + i] = 0; q.push(j * W + i); } };
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      const k = g.kindAt(i, j);
+      if (k === K.WINDOW || k === K.DOOR || k === K.MACHINE || g.hidden[j * W + i]) seed(i, j);
+    }
+    for (const m of g.markers) if (m.ch !== 'x' && m.ch !== 'o') seed(m.i, m.j);
+    seed(g.start.i, g.start.j);
+    for (let h = 0; h < q.length; h++) {
+      const c = q[h], i = c % W, j = (c / W) | 0, d = dist[c] + 1;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ni = i + di, nj = j + dj;
+        if (!g.inBounds(ni, nj)) continue;
+        const o = nj * W + ni;
+        if (dist[o] > d) { dist[o] = d; q.push(o); }
+      }
+    }
+    const fn = def.terrain;
+    const flat = (x: number, z: number) => {
+      // corner (x,z) touches four cells: use the closest of them
+      let d = 1e9;
+      for (const [ci, cj] of [[x - 1, z - 1], [x, z - 1], [x - 1, z], [x, z]]) if (g.inBounds(ci, cj)) d = Math.min(d, dist[cj * W + ci]);
+      const t = Math.max(0, Math.min(1, (d - 1) / 3.5));
+      return t * t * (3 - 2 * t);
+    };
+    this.terrain = new HeightField(W, H, (x, z) => fn(x, z) * flat(x, z));
+    setTerrain(this.terrain);
+  }
+
+  /** Drape static geometry over the terrain (vertical edges stay vertical: same x,z → same lift). */
+  private warp(geo: THREE.BufferGeometry) {
+    if (!this.terrain) return;
+    const pos = geo.attributes.position.array as Float32Array;
+    for (let i = 0; i < pos.length; i += 3) pos[i + 1] += this.terrain.at(pos[i], pos[i + 2]);
+    geo.attributes.position.needsUpdate = true;
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+  }
+
   // ------------------------------------------------------------------ structure
   private isOpenCell(k: number) { return k === K.FLOOR || k === K.PROP || k === K.MACHINE || k === K.LOW || k === K.DOOR; }
 
@@ -188,7 +259,7 @@ export class World {
         const zd = this.isOpenCell(nk) ? this.zoneDef(i + di, j + dj) : null;
         if (zd) hmax = Math.max(hmax, zd.height + (zd.ceiling ? 0.25 : 0));
       }
-      if (outside) hmax = Math.max(hmax, 4.4);
+      if (outside) hmax = this.def.outdoor ? this.def.outdoor.wallHeight : Math.max(hmax, 4.4);
       this.wallHeight[j * g.w + i] = hmax || 4;
     }
   }
@@ -206,11 +277,13 @@ export class World {
     const dirs: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     for (let j = 0; j < g.h; j++) for (let i = 0; i < g.w; i++) {
       const k = g.kindAt(i, j);
+      if (g.hidden[j * g.w + i]) continue; // built by the map's decorate hook
       const zd = this.zoneDef(i, j);
       // floors & ceilings
       if (this.isOpenCell(k) || k === K.WINDOW) {
         if (zd && k !== K.WINDOW) {
-          const f = new THREE.PlaneGeometry(1, 1, 2, 2);
+          const seg = def.outdoor ? 1 : 2;
+          const f = new THREE.PlaneGeometry(1, 1, seg, seg);
           batch.add('surf:' + zd.floor, f, M(i + 0.5, 0, j + 0.5, 0, -Math.PI / 2));
           if (zd.ceiling) {
             const c = new THREE.PlaneGeometry(1, 1, 1, 1);
@@ -228,6 +301,13 @@ export class World {
           const nk = g.kindAt(i + di, j + dj);
           if (this.isOpenCell(nk)) {
             const nz = this.zoneDef(i + di, j + dj);
+            if (!nz) continue;
+            if (!nz.ceiling && def.outdoor) {
+              // open-air estate wall: plain masonry, no skirting
+              this.face(batch, 'surf:' + nz.wall, i, j, di, dj, 0, wh);
+              needCap = true;
+              continue;
+            }
             if (!nz) continue;
             const top = nz.ceiling ? nz.height : wh;
             if (!nz.ceiling) needCap = true;
@@ -248,14 +328,14 @@ export class World {
         }
         if (needCap) batch.add('surf:' + def.exterior, box(1.0, 0.2, 1.0), M(i + 0.5, wh + 0.1, j + 0.5), 0x9a9a9a);
       }
-      if (k === K.VOID) {
+      if (k === K.VOID && !def.outdoor) {
         for (const [di, dj] of dirs) {
           if (g.kindAt(i + di, j + dj) === K.OUTSIDE) this.face(batch, 'surf:' + def.perimeter, i, j, di, dj, 0, 5.5, 0xb0b0b0);
         }
       }
     }
-    // door lintels & frames
-    for (const d of g.doors.values()) {
+    // door lintels & frames (indoor maps; outdoor gates stand free in their fence line)
+    if (!def.outdoor) for (const d of g.doors.values()) {
       for (const c of d.cells) {
         const i = c % g.w, j = (c / g.w) | 0;
         let top = 3;
@@ -312,7 +392,7 @@ export class World {
       });
       // moonlight spill through window
       const ox = cx - nx * 1.5, oz = cz - nz * 1.5;
-      this.bakeLights.push({ x: ox, y: 2.2, z: oz, r: 0.12, g: 0.16, b: 0.24, radius: 5.5 });
+      if (!def.skyLight) this.bakeLights.push({ x: ox, y: 2.2, z: oz, r: 0.12, g: 0.16, b: 0.24, radius: 5.5 });
     }
   }
 
@@ -327,15 +407,17 @@ export class World {
   }
 
   // ------------------------------------------------------------------ lights
-  private addLight(batch: GeoBatch, x: number, y: number, z: number, color: number, intensity: number, radius: number, flicker: number, fixture: 'cage' | 'none') {
+  private addLight(batch: GeoBatch, x: number, y0: number, z: number, color: number, intensity: number, radius: number, flicker: number, fixture: 'cage' | 'none') {
     const c = new THREE.Color(color);
+    // lights follow the terrain; fixture geometry is warped later, so build it at the flat height
+    const y = y0 + groundY(x, z);
     this.bakeLights.push({ x, y, z, r: c.r * intensity * 0.8, g: c.g * intensity * 0.8, b: c.b * intensity * 0.8, radius });
     this.practicals.push({ x, y, z, color: c, intensity, radius, flicker, phase: Math.random() * 100, level: 1, burst: 0, bulb: this.practicals.length });
     if (fixture === 'cage') {
       const ceil = this.ceilingAt(x, z);
       const top = isFinite(ceil) ? ceil : y + 0.6;
-      lightCage(batch, M(x, y, z), this.rng);
-      batch.add('plain:rubber', cyl(0.006, 0.006, top - y, 4), M(x, (top + y) / 2, z), 0x111111);
+      lightCage(batch, M(x, y0, z), this.rng);
+      batch.add('plain:rubber', cyl(0.006, 0.006, top - y0, 4), M(x, (top + y0) / 2, z), 0x111111);
     }
   }
 
@@ -351,6 +433,7 @@ export class World {
       placed.push({ x: m.i + 0.5, z: m.j + 0.5 });
     }
     // moonlight over open-sky zones and the outside ground (bake only, no fixtures)
+    if (def.skyLight) return this.autoCeilingLights(ctx, placed);
     const moon = this.def.sky === 'storm' ? 0x8090b0 : 0x90a8d8;
     const mc = new THREE.Color(moon);
     for (let j = 2; j < g.h; j += 6) for (let i = 2; i < g.w; i += 6) {
@@ -361,6 +444,11 @@ export class World {
         this.bakeLights.push({ x: i + 0.5, y: 7, z: j + 0.5, r: mc.r * inten, g: mc.g * inten, b: mc.b * inten, radius: 11, noShadow: true });
       }
     }
+    this.autoCeilingLights(ctx, placed);
+  }
+
+  private autoCeilingLights(ctx: BuildContext, placed: { x: number; z: number }[]) {
+    const g = this.grid, def = this.def;
     def.zones.forEach((zd, zi) => {
       if (!zd.ceiling) return;
       const sp = zd.lightSpacing ?? 5;
@@ -454,8 +542,10 @@ export class World {
           // a broken chair leg / cabinet poking out
           batch.add('plain:paint', rbox(0.5, 0.9, 0.4, 0.02), base.clone().multiply(M(0.2, 1.3, -0.1, 0.7, 0.4, 0.9)), 0x4c5434);
         } else if (def.doorStyle === 'gate') {
-          for (let b = 0; b < 9; b++) batch.add('plain:iron', cyl(0.022, 0.022, DOOR_TOP, 6), base.clone().multiply(M(-0.44 + b * 0.11, DOOR_TOP / 2, 0)), 0x3a3a38);
-          for (const y of [0.25, 1.2, 2.3]) batch.add('plain:iron', box(1.0, 0.06, 0.04), base.clone().multiply(M(0, y, 0)), 0x2e2e2c);
+          const top = def.outdoor?.gateTop ?? DOOR_TOP;
+          for (let b = 0; b < 9; b++) batch.add('plain:iron', cyl(0.022, 0.022, top, 6), base.clone().multiply(M(-0.44 + b * 0.11, top / 2, 0)), 0x3a3a38);
+          if (def.outdoor) for (let b = 0; b < 9; b++) batch.add('plain:iron', cone(0.04, 0.12, 4), base.clone().multiply(M(-0.44 + b * 0.11, top + 0.05, 0)), 0x3a3a38);
+          for (const y of [0.25, 1.2, top - 0.2]) batch.add('plain:iron', box(1.0, 0.06, 0.04), base.clone().multiply(M(0, y, 0)), 0x2e2e2c);
           batch.add('plain:iron', torus(0.08, 0.02, 4, 10), base.clone().multiply(M(0, 1.2, 0.06)), 0x555555);
           batch.add('plain:brass', rbox(0.1, 0.12, 0.05, 0.02), base.clone().multiply(M(0, 1.08, 0.08)), 0x9a7a3a);
           batch.add('plain:paper', box(0.32, 0.24, 0.005), base.clone().multiply(M(0.25, 1.55, 0.04, 0, 0, 0.05)), 0xc8b88a);
@@ -470,6 +560,7 @@ export class World {
       center.y = 1.2;
       const group = new THREE.Group();
       for (const [key, geo] of batch.finalize()) {
+        this.warp(geo);
         this.baker.bakeGeometry(geo);
         group.add(new THREE.Mesh(geo, this.matLib.get(key)));
       }
@@ -526,6 +617,7 @@ export class World {
 
   private sorted: PracticalLight[] = [];
   update(dt: number, time: number, cam: THREE.Vector3, powerOn: boolean) {
+    for (const u of this.updaters) u(dt, time);
     // flicker
     const col = new THREE.Color();
     for (const p of this.practicals) {
@@ -588,6 +680,7 @@ export class World {
   }
 
   dispose() {
+    if (this.terrain && getTerrain() === this.terrain) setTerrain(null);
     // world meshes + map objects (chalk, signs, crate parts) + the sky
     this.group.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -603,4 +696,38 @@ export class World {
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * Split an indexed geometry into square chunks (by triangle centroid). The chunks share the
+ * vertex attributes (uploaded once); each gets its own index and a tight bounding sphere so
+ * three.js can frustum-cull it.
+ */
+function splitChunks(geo: THREE.BufferGeometry, size: number): THREE.BufferGeometry[] {
+  const idx = geo.index!.array as ArrayLike<number>;
+  const pos = geo.attributes.position.array as Float32Array;
+  const buckets = new Map<number, number[]>();
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+    const cx = (pos[a] + pos[b] + pos[c]) / 3, cz = (pos[a + 2] + pos[b + 2] + pos[c + 2]) / 3;
+    const key = Math.floor(cz / size + 100) * 1000 + Math.floor(cx / size + 100);
+    let arr = buckets.get(key);
+    if (!arr) { arr = []; buckets.set(key, arr); }
+    arr.push(idx[t], idx[t + 1], idx[t + 2]);
+  }
+  if (buckets.size <= 1) return [geo];
+  const out: THREE.BufferGeometry[] = [];
+  const box = new THREE.Box3(), v = new THREE.Vector3();
+  for (const list of buckets.values()) {
+    const g = new THREE.BufferGeometry();
+    for (const name of Object.keys(geo.attributes)) g.setAttribute(name, geo.attributes[name]);
+    const maxI = list.reduce((m, x) => (x > m ? x : m), 0);
+    g.setIndex(new THREE.BufferAttribute(maxI > 65535 ? new Uint32Array(list) : new Uint16Array(list), 1));
+    box.makeEmpty();
+    for (const i of list) box.expandByPoint(v.fromArray(pos, i * 3));
+    g.boundingBox = box.clone();
+    g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+    out.push(g);
+  }
+  return out;
+}
 export { sphere };

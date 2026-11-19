@@ -1,5 +1,5 @@
 import { h } from '../core/dom';
-import { save, persist, defaultSettings, type Settings, type Quality } from '../core/save';
+import { save, persist, defaultSettings, isUnlocked, type Settings, type Quality } from '../core/save';
 import { MAPS } from '../world/maps';
 import { DIFFICULTY, type DifficultyId } from '../config/difficulty';
 import { LORE } from '../config/lore';
@@ -26,6 +26,8 @@ function mapPreview(id: string): HTMLCanvasElement {
     else if (ch === 'w') col = '#c0392b';
     else if (ch >= '1' && ch <= '9') col = '#d8a940';
     else if (ch === ',') col = '#141412';
+    else if (ch === '%') col = '#b8ad96';
+    else if (ch === 'f') col = '#7a7262';
     else if (zi >= 0 || 'xopcrsbelvq*'.includes(ch)) col = zi >= 0 ? zc[zi % zc.length] : '#5a5448';
     if (!col) continue;
     g.fillStyle = col;
@@ -91,21 +93,31 @@ export class Menus {
   mapSelect(): HTMLElement {
     const a = this.app;
     const grid = h('div', { style: 'display:flex;gap:12px;flex:1;min-height:0' });
-    for (const id of ['ravenmoor', 'station']) {
+    const bg: Record<string, string> = {
+      grounds: 'linear-gradient(160deg,#3a2a3a,#141220 60%,#0b0b10)',
+      ravenmoor: 'linear-gradient(160deg,#1c2622,#0c0d0b)',
+      station: 'linear-gradient(160deg,#2a2214,#0b0c12)',
+    };
+    for (const id of ['grounds', 'ravenmoor', 'station']) {
       const m = MAPS[id];
       if (!m) continue;
+      const open = isUnlocked(m);
       const scores = (['easy', 'normal', 'hardened'] as DifficultyId[]).map((d) => {
         const s = save.scores[`${id}:${d}`];
-        return `${DIFFICULTY[d].name}: ${s ? 'R' + s.round : '—'}`;
-      }).join('   ');
-      const card = h('div', { class: 'card', style: 'flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-height:0;overflow:hidden;background:' + (id === 'ravenmoor' ? 'linear-gradient(160deg,#1c2622,#0c0d0b)' : 'linear-gradient(160deg,#2a2214,#0b0c12)') },
+        return `${DIFFICULTY[d].name[0]}: ${s ? 'R' + s.round : '—'}`;
+      }).join('  ');
+      const lockNote = !open && m.unlock ? `LOCKED — reach round ${m.unlock.round} on ${MAPS[m.unlock.map]?.name ?? m.unlock.map}` : '';
+      const card = h('div', { class: 'card' + (open ? '' : ' locked'), style: 'flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-height:0;overflow:hidden;background:' + bg[id] },
         mapPreview(id),
         h('div', { class: 'ct' }, m.name.toUpperCase()),
         h('div', { class: 'cs' }, m.subtitle),
-        h('div', { class: 'cs', style: 'margin-top:6px;font-size:11px' }, m.desc),
+        open ? h('div', { class: 'cs', style: 'margin-top:4px;font-size:11px' }, m.desc) : h('div', { class: 'lock-note' }, '🔒 ' + lockNote),
         h('div', { class: 'cb' }, 'BEST — ' + scores),
       );
-      card.addEventListener('click', () => { click(); a.mapId = id; a.setScreen(this.difficulty()); });
+      card.addEventListener('click', () => {
+        if (!open) { audio.play('ui_denied', { bus: 'ui', vol: 0.7 }); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); return; }
+        click(); a.mapId = id; a.setScreen(this.difficulty());
+      });
       grid.appendChild(card);
     }
     return h('div', { class: 'screen dim' }, this.header('Choose a Map', () => a.setScreen(this.main())), grid);
@@ -219,7 +231,9 @@ export class Menus {
       <div class="h2" style="margin-top:10px">Power-ups</div>
       Resupply (max ammo), Overload (one-hit kills), Double Points, Kill Signal (kills every Tethered), Fortify (rebuilds every barrier).
       <div class="h2" style="margin-top:10px">Secrets</div>
-      Both maps hide a radio-driven main quest, a boss, a hidden song and lore notes. Listen to the static.` });
+      Every map hides a main quest, a hidden song and lore notes. Listen to the static — and to the bells on the Grounds.
+      <div class="h2" style="margin-top:10px">Maps</div>
+      Start on <b>Ravenmoor Grounds</b>. Reach <b>round 5</b> there and the <b>Asylum</b> opens.` });
     return h('div', { class: 'screen dim' }, this.header('How to Play', onBack), body,
       h('div', { style: 'margin-top:8px' }, btn('Replay tutorial next game', () => { save.settings.tutorialDone = false; persist(); }, 'btn small')));
   }
@@ -232,7 +246,7 @@ export class Menus {
       const has = found.has(n.id);
       const c = h('div', { class: 'card', style: has ? '' : 'opacity:0.45' },
         h('div', { class: 'ct', style: 'font-size:14px' }, has ? n.title : '— missing —'),
-        h('div', { class: 'cs' }, n.map === 'ravenmoor' ? 'Ravenmoor Asylum' : 'Halcyon Signal Station'));
+        h('div', { class: 'cs' }, MAPS[n.map]?.name ?? n.map));
       if (has) c.addEventListener('click', () => { click(); this.app.setScreen(this.noteView(n.id, () => this.app.setScreen(this.lore(onBack)), null)); });
       list.appendChild(c);
     }

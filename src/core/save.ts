@@ -87,6 +87,22 @@ export function recordScore(map: string, difficulty: string, round: number, kill
   return better;
 }
 
+/** Map unlocks: a map with `unlock` opens once its gate round was reached on the gate map. */
+export function isUnlocked(def: { id: string; unlock?: { map: string; round: number } }): boolean {
+  if (!def.unlock) return true;
+  if (save.seen.includes('unlock:' + def.id)) return true;
+  // anyone who already played this map before the gate existed keeps it
+  if (Object.keys(save.scores).some((k) => k.startsWith(def.id + ':'))) return true;
+  return Object.entries(save.scores).some(([k, v]) => k.startsWith(def.unlock!.map + ':') && v.round >= def.unlock!.round);
+}
+
+export function markUnlocked(id: string): boolean {
+  if (save.seen.includes('unlock:' + id)) return false;
+  save.seen.push('unlock:' + id);
+  persist();
+  return true;
+}
+
 export function addNote(id: string): boolean {
   if (save.notes.includes(id)) return false;
   save.notes.push(id);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { K, type Grid } from '../world/grid';
 import { LIGHTING } from '../config/lighting';
+import { groundY } from '../world/terrain';
 
 export interface BakeLight {
   x: number; y: number; z: number;
@@ -25,6 +26,7 @@ export class LightBaker {
     private lights: BakeLight[],
     private ambientAt: (x: number, z: number, out: THREE.Color) => void,
     private ceilingAt: (x: number, z: number) => number, // Infinity for open sky
+    private sky?: { top: number; bottom: number; glow: number; glowDir: [number, number, number] },
   ) {
     lights.forEach((l, idx) => {
       const r = Math.ceil(l.radius / this.B);
@@ -46,7 +48,7 @@ export class LightBaker {
 
   /** Does this point sit in solid space (for AO)? */
   private solidAt(x: number, y: number, z: number): boolean {
-    if (y < 0) return true;
+    if (y < groundY(x, z)) return true;
     const i = Math.floor(x), j = Math.floor(z);
     const k = this.grid.kindAt(i, j);
     if (k === K.WALL || k === K.VOID) {
@@ -90,6 +92,15 @@ export class LightBaker {
     const sx = px + nx * 0.12, sz = pz + nz * 0.12;
     this.ambientAt(sx, sz, this._c);
     let r = this._c.r * ao, g = this._c.g * ao, b = this._c.b * ao;
+    const sky = this.sky;
+    if (sky && !isFinite(this.ceilingAt(sx, sz))) {
+      // open air: dusk sky dome (cool, from above) + afterglow (warm, low in the west)
+      const hemi = ao * (sky.bottom + (sky.top - sky.bottom) * (0.5 + 0.5 * ny));
+      r += hemi * 0.72; g += hemi * 0.8; b += hemi * 1.0;
+      const gd = sky.glowDir;
+      const gl = Math.max(0, nx * gd[0] + ny * gd[1] + nz * gd[2]) * sky.glow * (0.4 + 0.6 * ao);
+      r += gl * 1.0; g += gl * 0.62; b += gl * 0.45;
+    }
     const key = Math.floor(sz / this.B) * 1000 + Math.floor(sx / this.B);
     const list = this.buckets.get(key);
     if (list) {
@@ -137,7 +148,7 @@ export class LightBaker {
       const o = (j * g.w + i) * 3;
       let r = 0, gg = 0, b = 0;
       for (const nn of normals) {
-        this.irradiance(i + 0.5, 1.2, j + 0.5, nn[0], nn[1], nn[2], tmp, 0, false);
+        this.irradiance(i + 0.5, 1.2 + groundY(i + 0.5, j + 0.5), j + 0.5, nn[0], nn[1], nn[2], tmp, 0, false);
         r += tmp[0]; gg += tmp[1]; b += tmp[2];
       }
       this.probes[o] = r / 5; this.probes[o + 1] = gg / 5; this.probes[o + 2] = b / 5;

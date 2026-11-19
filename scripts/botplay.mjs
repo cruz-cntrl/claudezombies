@@ -48,7 +48,7 @@ const res = await page.evaluate(async ({ mins, skill }) => {
     if (target) {
       const aimHead = skill > 0.5 && Math.hypot(target.x - p.pos.x, target.z - p.pos.z) < 12;
       const pt = aimHead ? target.head : target.neck;
-      const dx = pt.x - p.pos.x, dy = pt.y - p.eye, dz = pt.z - p.pos.z;
+      const dx = pt.x - p.pos.x, dy = pt.y - g.camPos.y, dz = pt.z - p.pos.z;
       const hd = Math.hypot(dx, dz);
       const wantYaw = Math.atan2(-dx, -dz) + aimErrY, wantPitch = Math.atan2(dy, hd) + aimErrP;
       let dyaw = wantYaw - p.yaw; while (dyaw > Math.PI) dyaw -= 2 * Math.PI; while (dyaw < -Math.PI) dyaw += 2 * Math.PI;

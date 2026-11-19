@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { withBake } from './materials';
+import { groundY } from '../world/terrain';
 
 /**
  * Pooled effects: CPU-simulated particles drawn as two Points systems (additive + alpha),
@@ -90,7 +91,8 @@ class ParticleSystem {
       this.pos[i * 3] += this.vel[i * 3] * dt;
       this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
       this.pos[i * 3 + 2] += this.vel[i * 3 + 2] * dt;
-      if (this.pos[i * 3 + 1] < 0.01) { this.pos[i * 3 + 1] = 0.01; this.vel[i * 3 + 1] *= -0.3; this.vel[i * 3] *= 0.6; this.vel[i * 3 + 2] *= 0.6; }
+      const gy = groundY(this.pos[i * 3], this.pos[i * 3 + 2]);
+      if (this.pos[i * 3 + 1] < gy + 0.01) { this.pos[i * 3 + 1] = gy + 0.01; this.vel[i * 3 + 1] *= -0.3; this.vel[i * 3] *= 0.6; this.vel[i * 3 + 2] *= 0.6; }
       const fadeIn = Math.min(1, t * 8);
       this.col[i * 4] = this.base[o];
       this.col[i * 4 + 1] = this.base[o + 1];
@@ -361,8 +363,9 @@ export class FX {
       c.vy -= 9.8 * dt;
       c.x += c.vx * dt; c.y += c.vy * dt; c.z += c.vz * dt;
       c.rx += c.spin * dt; c.ry += c.spin * 0.7 * dt;
-      if (c.y < 0.01) {
-        c.y = 0.01;
+      const cg = groundY(c.x, c.z);
+      if (c.y < cg + 0.01) {
+        c.y = cg + 0.01;
         if (Math.abs(c.vy) > 0.6) { if (!c.bounced) { c.bounced = true; this.onCasingBounce?.(c.x, c.y, c.z, c.shell); } }
         c.vy *= -0.35; c.vx *= 0.5; c.vz *= 0.5; c.spin *= 0.5;
       }

@@ -29,6 +29,10 @@ export class Grid {
   start = { i: 1, j: 1 };
   /** door cells store their id char here (0 if none) */
   readonly doorId: Uint8Array;
+  /** '%' cells: solid, but the generic builder draws nothing (map decorate builds them) */
+  readonly hidden: Uint8Array;
+  /** 'f' cells: fence / hedge lines */
+  readonly fence: Uint8Array;
 
   constructor(readonly def: MapDef) {
     const rows = def.layout;
@@ -38,6 +42,8 @@ export class Grid {
     this.kind = new Uint8Array(n);
     this.zone = new Int8Array(n).fill(-1);
     this.doorId = new Uint8Array(n);
+    this.hidden = new Uint8Array(n);
+    this.fence = new Uint8Array(n);
     const letters = def.zones.map((z) => z.letter);
     const counters: Record<string, number> = {};
 
@@ -57,6 +63,8 @@ export class Grid {
           case 'v': this.kind[idx] = K.FLOOR; this.vents.push({ i, j, zone: -1 }); break;
           case 'x': this.kind[idx] = K.PROP; this.pushMarker(ch, i, j, counters); break;
           case 'o': this.kind[idx] = K.LOW; this.pushMarker(ch, i, j, counters); break;
+          case 'f': this.kind[idx] = K.LOW; this.fence[idx] = 1; break;
+          case '%': this.kind[idx] = K.WALL; this.hidden[idx] = 1; break;
           case 'p': case 'c': case 'r': case 'q':
             this.kind[idx] = K.MACHINE; this.pushMarker(ch, i, j, counters); break;
           case 'b': case 's': case 'e': case 'l':

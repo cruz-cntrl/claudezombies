@@ -146,6 +146,7 @@ function graffiti(ctx: BuildContext, text: string, x: number, y: number, z: numb
 
 export const ravenmoor: MapDef = {
   id: 'ravenmoor',
+  unlock: { map: 'grounds', round: 5 },
   name: 'Ravenmoor Asylum',
   subtitle: '1944 — where the Tethered were kept',
   desc: 'A crumbling military asylum of stone and green tile. Patient ward, operating theater, a flooded boiler room and a rain-soaked courtyard.',

@@ -12,6 +12,7 @@ import { MotherTransmitter } from '../entities/bosses/motherTransmitter';
 import { rbox, cyl, lathe, box, compose, M, torus } from '../render/geometryKit';
 import { jagged } from '../render/fx';
 import { pick, randInt } from '../core/math';
+import { groundY } from '../world/terrain';
 
 interface Item { id: string; m: Marker; mesh: THREE.Group; glow: THREE.Mesh | null; taken: boolean }
 
@@ -37,6 +38,11 @@ export class EasterEggs {
   private gagUsed = false;
   private glowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 2.2, 2.4) });
   private relayArcT = 0;
+  // Ravenmoor Grounds: flare pistol → three coffin bells → the vigil under the tower
+  private flareGun = false;
+  private bells = new Set<string>();
+  private vigil: { t: number; age: number; x: number; z: number; sprite: THREE.Sprite; arcT: number } | null = null;
+  private blackout = false;
   readonly mapId: string;
 
   constructor(private g: Game) {
@@ -89,6 +95,25 @@ export class EasterEggs {
     } else if (kind === 'stash') {
       const crate = new THREE.Mesh(compose([[rbox(0.6, 0.4, 0.4, 0.02), M(0, 0.2, 0)], [box(0.62, 0.05, 0.42), M(0, 0.42, 0), 0x8a1a12]]), mat(0x5a4632));
       grp.add(crate);
+    } else if (kind === 'flaregun') {
+      grp.add(stand);
+      const gun = new THREE.Mesh(compose([[box(0.05, 0.06, 0.2), M(0, 0.04, -0.02)], [cyl(0.028, 0.028, 0.14, 10), M(0, 0.06, -0.15, 0, Math.PI / 2)], [box(0.04, 0.1, 0.05), M(0, -0.02, 0.07, 0, -0.3)]]), mat(0xc0501c));
+      gun.position.y = 0.8; gun.rotation.y = 0.6;
+      glow = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.6, 0.3) }));
+      glow.position.set(0, 0.9, -0.1);
+      grp.add(gun, glow);
+    } else if (kind.startsWith('bell')) {
+      const b = new THREE.Mesh(lathe([[0.11, 0], [0.09, 0.03], [0.06, 0.13], [0.0, 0.15]], 12), new THREE.MeshStandardMaterial({ color: 0x9a7a3a, metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide }));
+      b.position.set(-0.05, 1.6, 0);
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1.0, 4), mat(0x5a4a30));
+      rope.position.set(-0.05, 1.1, 0);
+      glow = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.7, 0.6) }));
+      glow.position.set(-0.05, 1.58, 0);
+      grp.add(b, rope, glow);
+    } else if (kind === 'beaconBase') {
+      const crateM = new THREE.Mesh(compose([[rbox(0.7, 0.45, 0.5, 0.02), M(0, 0.22, 0)], [box(0.72, 0.06, 0.52), M(0, 0.47, 0), 0x8a1a12]]), mat(0x4a3e2c));
+      const stake = new THREE.Mesh(compose([[cyl(0.03, 0.03, 1.4, 6), M(0.5, 0.7, 0)], [box(0.3, 0.2, 0.01), M(0.62, 1.3, 0)]]), mat(0xa02818));
+      grp.add(crateM, stake);
     } else if (kind === 'radiogag') {
       grp.add(stand);
       const radio = new THREE.Mesh(compose([[rbox(0.32, 0.22, 0.16, 0.04), M(0, 0.11, 0)], [box(0.2, 0.12, 0.01), M(-0.04, 0.12, 0.081), 0x2a2010]]), mat(0x7a4a28));
@@ -155,6 +180,41 @@ export class EasterEggs {
         audio.play('ui_purchase', { bus: 'ui' });
         bus.emit('message', { text: 'THE DIRECTOR’S STASH', sub: '+1500 and fresh ammunition', duration: 3, color: '#d8a940' });
       });
+    } else if (id === 'flaregun') {
+      add(() => (this.flareGun ? null : { text: 'Take the pilot’s flare pistol', sub: 'One flare left in it' }), () => {
+        this.flareGun = true; it.taken = true; mesh.visible = false;
+        audio.play('ui_valve', { bus: 'ui' });
+        bus.emit('message', { text: 'FLARE PISTOL', sub: 'One flare. Bright enough to blind something.', duration: 3.5, color: '#e8823a' });
+        this.progress();
+      });
+    } else if (id.startsWith('bell')) {
+      add(() => (this.bells.has(id) ? null : { text: 'Ring the coffin bell', sub: 'Something below might answer' }), () => {
+        this.bells.add(id);
+        if (it.glow) it.glow.visible = false;
+        audio.play('ui_graveBell', { pos: { x: at.x, y: 1.6, z: at.z }, vol: 1, priority: 9 });
+        g.rounds.surge += 4 + Math.ceil(g.rounds.round * 0.6);
+        if (g.rounds.state !== 'active') g.rounds.startRound(g.rounds.round + 1);
+        const n = this.bells.size;
+        if (n < 3) bus.emit('message', { text: `THE DEAD ANSWER  ${n}/3`, sub: 'The graves are opening', duration: 3, color: '#d8a940' });
+        else {
+          bus.emit('message', { text: 'THE TOWER LIGHT STUTTERS', sub: 'It is listening for you now', duration: 4, color: '#4fa8ff' });
+          const bc = g.world.setpieces.get('beacon') as { flicker: number } | undefined;
+          if (bc) bc.flicker = 5;
+          audio.play('ui_eeStep', { bus: 'ui' });
+        }
+        this.progress();
+      }, 0.5);
+    } else if (id === 'beaconBase') {
+      add(() => {
+        if (this.blackout || this.vigil) return null;
+        if (!this.flareGun) return { text: 'Beneath the signal tower', sub: 'Something bright might blind it…' };
+        if (this.bells.size < 3) return { text: 'Beneath the signal tower', sub: `It isn’t listening yet (bells ${this.bells.size}/3)` };
+        if (!g.powerOn) return { text: 'Beneath the signal tower', sub: 'The estate needs power first' };
+        return { text: 'Fire the flare at the tower light', sub: 'Then hold your ground' };
+      }, () => {
+        if (!this.flareGun || this.bells.size < 3 || !g.powerOn) { audio.play('ui_denied', { bus: 'ui' }); return; }
+        this.startVigil(at.x, at.z);
+      }, 0.6);
     } else if (id === 'radiogag') {
       add(() => (this.gagUsed ? { text: 'Fiddle with the broken radio', sub: 'It seems pleased with itself' } : { text: 'Fiddle with the broken radio', sub: '?' }), () => {
         audio.play('ui_radioLaugh', { pos: { x: at.x, y: 1, z: at.z }, vol: 1, priority: 8 });
@@ -339,7 +399,7 @@ export class EasterEggs {
     if (w && !w.upgraded) { w.upgrade(); g.weapons.vm.setWeapon(w.def.id, true); bus.emit('weaponChanged', {}); }
     const key = this.mapId + ':main';
     if (!save.eeDone.includes(key)) { save.eeDone.push(key); persist(); }
-    const title = this.mapId === 'station' ? 'SIGNAL CUT' : 'DEAD AIR';
+    const title = this.mapId === 'station' ? 'SIGNAL CUT' : this.mapId === 'grounds' ? 'LIGHTS OUT' : 'DEAD AIR';
     bus.emit('message', { text: title, sub: 'Every tonic is yours. Your weapon has been rewired.', duration: 6, color: '#4ff0e8' });
     setTimeout(() => { g.boss?.dispose(); g.boss = null; }, 9000);
     if (this.mapId === 'station') setTimeout(() => this.modal(this.endingCredits()), 6500);
@@ -356,10 +416,68 @@ export class EasterEggs {
     return scr;
   }
 
+  // ---------------------------------------------------------------- grounds: the vigil
+  private static VIGIL = 45;
+  private startVigil(x: number, z: number) {
+    const g = this.g;
+    audio.play('ui_flare', { pos: { x, y: 1.5, z }, vol: 1, priority: 10 });
+    const mat = new THREE.SpriteMaterial({ color: new THREE.Color(3.2, 0.9, 0.5), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, map: flareTex() });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.setScalar(3);
+    sprite.position.set(x, 2, z);
+    this.group.add(sprite);
+    this.vigil = { t: 0, age: 0, x, z, sprite, arcT: 0 };
+    const bc = g.world.setpieces.get('beacon') as { target: number; flicker: number } | undefined;
+    if (bc) { bc.target = 0.45; bc.flicker = 2; }
+    g.rounds.surge += 14 + g.rounds.round * 2;
+    if (g.rounds.state !== 'active') g.rounds.startRound(g.rounds.round + 1);
+    bus.emit('message', { text: 'THE FLARE IS UP', sub: `Hold the ground under the tower — ${EasterEggs.VIGIL} s`, duration: 4, color: '#e8823a' });
+    this.progress();
+  }
+
+  private updateVigil(dt: number) {
+    const v = this.vigil!;
+    const g = this.g, p = g.player.pos;
+    const near = Math.hypot(p.x - v.x, p.z - v.z) < 11 && !g.player.downed;
+    v.t = Math.max(0, v.t + (near ? dt : -dt * 0.5));
+    const k = v.t / EasterEggs.VIGIL;
+    // the flare climbs over the tower, then drifts down as it burns
+    const lm = g.world.def.landmark;
+    const tx = lm?.x ?? v.x, tz = lm?.z ?? v.z - 10, top = (lm?.y ?? 30) + 6;
+    v.age += dt;
+    const climb = Math.min(1, v.age * 0.5 + 0.25);
+    const y = groundY(v.x, v.z) + 2 + (top - 2) * climb - Math.max(0, k - 0.15) * 14;
+    v.sprite.position.set(v.x + (tx - v.x) * climb + Math.sin(g.time * 0.7) * 0.6, y, v.z + (tz - v.z) * climb);
+    v.sprite.scale.setScalar(5 + Math.sin(g.time * 23) * 0.6);
+    v.arcT -= dt;
+    if (v.arcT <= 0) {
+      v.arcT = 0.12;
+      g.fx.flash(v.sprite.position.x, Math.min(y, 18), v.sprite.position.z, 14 + Math.random() * 6, 0xff5a30);
+    }
+    if (Math.random() < dt * 3) bus.emit('eeProgress', { text: near ? `HOLD THE TOWER — ${Math.ceil(EasterEggs.VIGIL - v.t)}s` : `GET BACK UNDER THE TOWER! (${Math.ceil(EasterEggs.VIGIL - v.t)}s)` });
+    if (v.t >= EasterEggs.VIGIL) this.lightsOut();
+  }
+
+  private lightsOut() {
+    const g = this.g;
+    const v = this.vigil!;
+    this.group.remove(v.sprite);
+    (v.sprite.material as THREE.SpriteMaterial).dispose();
+    this.vigil = null;
+    this.blackout = true;
+    const bc = g.world.setpieces.get('beacon') as { target: number; level: number } | undefined;
+    if (bc) { bc.target = 0; bc.level = 0; }
+    audio.play('ui_puKill', { bus: 'ui', vol: 1 });
+    g.zombies.killAll((z) => !z.boss);
+    g.rounds.surge = 0;
+    this.victory();
+  }
+
   // ---------------------------------------------------------------- update
   update(dt: number) {
     const g = this.g, p = g.player.pos;
     const t = g.time;
+    if (this.vigil) this.updateVigil(dt);
     for (const it of this.items.values()) if (it.glow && !it.taken) {
       const k = 0.6 + Math.sin(t * 3 + it.m.i) * 0.4;
       (it.glow.material as THREE.MeshBasicMaterial).color.setScalar(k * 2.2);
@@ -395,11 +513,16 @@ export class EasterEggs {
 
   private progress() {
     let text = '';
-    if (this.completed) text = this.mapId === 'station' ? 'SIGNAL CUT ✓' : 'DEAD AIR ✓';
+    if (this.completed) text = this.mapId === 'station' ? 'SIGNAL CUT ✓' : this.mapId === 'grounds' ? 'LIGHTS OUT ✓' : 'DEAD AIR ✓';
     else if (this.bossSummoned) text = '';
     else if (this.mapId === 'ravenmoor') {
       if (this.valves > 0 && !this.valvesInstalled) text = `Radio valves ${this.valves}/3`;
       else if (this.valvesInstalled && !this.tuned) text = 'The console waits for a frequency';
+    } else if (this.mapId === 'grounds') {
+      if (this.vigil) text = '';
+      else if (this.bells.size === 3) text = this.flareGun ? 'The tower is listening — stand beneath it' : 'The tower is listening';
+      else if (this.bells.size > 0) text = `Coffin bells ${this.bells.size}/3`;
+      else if (this.flareGun) text = 'Flare pistol: one shot';
     } else if (this.mapId === 'station') {
       const locked = this.relays.filter((r) => r.state === 'locked').length;
       if (locked > 0 && locked < 3) text = `Relays ${locked}/3 locked`;
@@ -409,7 +532,8 @@ export class EasterEggs {
   }
 
   summary(): string {
-    if (this.completed) return this.mapId === 'station' ? 'Signal Cut — complete' : 'Dead Air — complete';
+    if (this.completed) return this.mapId === 'station' ? 'Signal Cut — complete' : this.mapId === 'grounds' ? 'Lights Out — complete' : 'Dead Air — complete';
+    if (this.mapId === 'grounds') return `${this.bells.size}/3 bells${this.flareGun ? ', flare pistol' : ''}${this.vigil ? ', vigil' : ''}`;
     if (this.bossSummoned) return 'Boss reached';
     if (this.mapId === 'station') return `${this.relays.filter((r) => r.state === 'locked').length}/3 relays${this.codeOk ? ', code' : ''}`;
     return `${this.valves}/3 valves${this.valvesInstalled ? ', installed' : ''}${this.tuned ? ', tuned' : ''}`;
@@ -423,3 +547,16 @@ export class EasterEggs {
 }
 
 void torus;
+
+let flareT: THREE.Texture | null = null;
+function flareTex(): THREE.Texture {
+  if (flareT) return flareT;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.2, 'rgba(255,255,255,0.6)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  flareT = new THREE.CanvasTexture(c);
+  return flareT;
+}

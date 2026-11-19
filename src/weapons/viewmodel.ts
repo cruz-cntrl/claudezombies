@@ -3,6 +3,9 @@ import { getGunModel, buildHand, buildKnife, buildGrenade, buildBottle, animateU
 import type { ReloadStyle } from '../config/weapons';
 import { damp, clamp, smoothstep } from '../core/math';
 
+/** Viewmodel scale at the hip and aimed, and how much further out the gun sits when aimed. */
+const HIP_SCALE = 1.15, ADS_SCALE = 0.8, ADS_DIST = 1.45;
+
 export interface VmState {
   ads: number;
   bobPhase: number;
@@ -57,7 +60,7 @@ export class Viewmodel {
 
   constructor(private camera: THREE.PerspectiveCamera, scene: THREE.Scene, flashTex: THREE.Texture) {
     camera.add(this.root);
-    this.root.scale.setScalar(1.15);
+    this.root.scale.setScalar(HIP_SCALE);
     this.root.add(this.sway);
     this.sway.add(this.kickG);
     this.kickG.add(this.gunHolder);
@@ -147,9 +150,13 @@ export class Viewmodel {
     // --- base pose: hip <-> ADS
     const ads = smoothstep(0, 1, s.ads);
     const hip = gun.hip;
+    // aimed, the gun shrinks and sits further out so it frames the reticle instead of covering
+    // the target; the sight line is placed exactly on the screen centre (scale-corrected)
+    const sc = HIP_SCALE + (ADS_SCALE - HIP_SCALE) * ads;
+    this.root.scale.setScalar(sc);
     const tx = hip.x * (1 - ads);
-    const ty = hip.y * (1 - ads) + (-gun.sightY) * ads;
-    const tz = hip.z * (1 - ads) + (-gun.adsZ) * ads;
+    const ty = hip.y * (1 - ads) + (-gun.sightY * ADS_SCALE) * ads;
+    const tz = hip.z * (1 - ads) + (-gun.adsZ * ADS_DIST) * ads;
     // sway (lag behind look)
     this.swayX = damp(this.swayX, clamp(-s.lookDX * 2.2, -0.06, 0.06), 10, dt);
     this.swayY = damp(this.swayY, clamp(-s.lookDY * 2.2, -0.05, 0.05), 10, dt);

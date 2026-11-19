@@ -27,7 +27,7 @@ export function registerSounds() {
     ['debris', 1], ['boxOpen', 1], ['boxJingle', 1], ['radioLaugh', 1], ['drink', 1], ['heartbeat', 1], ['hurt', 3], ['downed', 1],
     ['puSpawn', 1], ['puGrab', 1], ['puResupply', 1], ['puOverload', 1], ['puDouble', 1], ['puKill', 1], ['puFortify', 1], ['puEnd', 1],
     ['rewirer', 1], ['noteFound', 1], ['valve', 1], ['tune', 2], ['eeStep', 1], ['step', 4], ['grenadePin', 1], ['grenadeBounce', 2],
-    ['musicBox', 1], ['tape', 1], ['keypad', 2], ['alarm', 1],
+    ['musicBox', 1], ['tape', 1], ['keypad', 2], ['alarm', 1], ['graveBell', 1], ['flare', 1],
     ['perkJingle_ironhide', 1], ['perkJingle_quickhands', 1], ['perkJingle_secondwind', 1], ['perkJingle_fleetfoot', 1],
     ['perkJingle_rapidfire', 1], ['perkJingle_packmule', 1]];
   for (const [k, n] of ui) audio.register('ui_' + k, n, (v) => renderUi(k, v));

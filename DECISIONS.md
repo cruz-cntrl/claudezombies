@@ -92,3 +92,27 @@ Choices made where the brief was ambiguous, with the reasoning.
 38. **The chip is a one-shot kill.** Any hit on the chip of a regular Tethered or hound kills it instantly at any
     round (bigger hit sphere: 0.11 m radius). Brutes (cage first) and bosses still take ×2.5 critical damage only.
     Both are switches in `config/enemies.ts` (`chipOneShot`, `chipHitRadius`).
+39. **Aimed reticle.** Bullets always leave along the exact screen centre, so ADS shows a red dot there (plus a faint
+    ring sized to the gun's aimed spread, e.g. shotguns). The gun shrinks to ~55 % and sits further out when aimed,
+    with its sight line placed exactly on the dot; the viewmodel no longer magnifies with ADS zoom, and camera shake
+    is mostly suppressed while aiming so the dot stays on the bullet path.
+40. **Menu taps.** iOS was delivering a tap's synthetic `click` to whatever button of the *next* screen appeared
+    under the finger (title → Settings instead of the main menu), and dropping taps when the finger wobbled.
+    `ui/tap.ts` runs menu buttons on pointerup (12 px slop) and swallows any click from a touch that started on a
+    screen that has since been replaced. Starting / quitting a game ignores repeat taps while it loads.
+41. **Ravenmoor Grounds** is the first map. It is ~2× the playable area of both indoor maps combined ×2 (layout is
+    authored at 1× and stretched by `KS = 1.42`; set-pieces keep their size). Open-air zones are separated by
+    railings, hedges and dry-stone walls (`'f'` cells: block movement, not bullets or sight) with gates; the Tethered
+    climb through barricaded gaps in the estate wall and out of open graves.
+42. **Terrain without rewriting the engine.** The grid stays 2D. A height field (`world/terrain.ts`) is flattened
+    around machines, windows, doors and set-pieces, all static geometry is warped onto it once at build time, and
+    everything dynamic adds `groundY(x, z)` (camera, zombies, decals, casings, pickups, grenades, ground hits,
+    cutscene cameras). Hills are kept gentle (±2 m) so aiming and hit boxes behave exactly like flat ground.
+43. **Dusk lighting** is a baked sky term (cool hemisphere fill + warm afterglow from the west) instead of
+    moonlight probes, with a dusk sky shader, mauve fog and an unfogged ridge silhouette. The beacon and the flare are
+    unfogged HDR sprites so they read from anywhere.
+44. **Big-map performance.** Heavy merged layers are split into 48 m chunks (sharing one vertex buffer) so the
+    camera culls what is behind it; outdoor floors use one quad per cell. Typical frame: 70–200 draw calls,
+    150–310 k triangles on the Grounds.
+45. **Unlocks.** Ravenmoor Asylum unlocks the moment round 5 starts on the Grounds (any difficulty). Players who
+    already have an Asylum score keep it unlocked. Halcyon Signal Station stays open as before.

@@ -117,7 +117,7 @@ export class AmbientFx {
     }
     // lightning
     const storm = g.world.def.sky === 'storm';
-    const outdoorNearby = g.world.def.zones.some((z) => !z.ceiling);
+    const outdoorNearby = g.world.def.sky !== 'dusk' && g.world.def.zones.some((z) => !z.ceiling);
     this.lightningT -= dt;
     if (this.lightningT <= 0 && outdoorNearby) {
       this.lightningT = storm ? 6 + Math.random() * 10 : 14 + Math.random() * 22;

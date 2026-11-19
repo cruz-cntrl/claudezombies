@@ -38,6 +38,9 @@ export class Hud {
   private pus = h('div', { class: 'hud-powerups' });
   private cross = h('div', { class: 'crosshair' });
   private ct = h('i', { class: 't' }); private cb = h('i', { class: 'b' }); private cl = h('i', { class: 'l' }); private cr = h('i', { class: 'r' });
+  /** ADS reticle: dot = exact bullet path (screen centre), ring = this gun's aimed spread */
+  private adsRet = h('div', { class: 'ads-ret' });
+  private adsRing = h('i', { class: 'ring' });
   private hit = h('div', { class: 'hitmarker' });
   private warn = h('div', { class: 'hud-warn' }, '');
   private msg = h('div', { class: 'hud-msg' });
@@ -68,12 +71,13 @@ export class Hud {
     this.ammo.append(this.wname, h('div', null, this.mag, this.res), this.nades);
     this.roundBox.append(this.roundCanvas);
     this.cross.append(this.ct, this.cb, this.cl, this.cr, h('i', { class: 'dot' }));
+    this.adsRet.append(this.adsRing, h('i', { class: 'dot' }));
     this.boss.append(this.bossName, h('div', { class: 'bar' }, this.bossFill));
     this.scope.innerHTML = '<div style="position:absolute;left:50%;top:50%;width:66vh;height:1px;margin-left:-33vh;background:rgba(0,0,0,0.85)"></div><div style="position:absolute;left:50%;top:50%;height:66vh;width:1px;margin-top:-33vh;background:rgba(0,0,0,0.85)"></div>';
     this.staticEl.className = 'static-overlay';
     this.staticEl.width = 160; this.staticEl.height = 90;
     this.staticEl.style.width = '100%'; this.staticEl.style.height = '100%';
-    r.append(this.scope, this.staticEl, this.points, this.ammo, this.roundBox, this.perks, this.pus, this.cross, this.hit, this.warn, this.msg, this.boss, this.revive, this.ee);
+    r.append(this.scope, this.staticEl, this.points, this.ammo, this.roundBox, this.perks, this.pus, this.cross, this.adsRet, this.hit, this.warn, this.msg, this.boss, this.revive, this.ee);
     this.msg.style.opacity = '0';
     this.layout();
     onLayout(() => this.layout());
@@ -248,6 +252,18 @@ export class Hud {
       const gap = Math.max(4, Math.min(80, px));
       this.ct.style.top = -gap - 9 + 'px'; this.cb.style.top = gap + 'px';
       this.cl.style.left = -gap - 9 + 'px'; this.cr.style.left = gap + 'px';
+    }
+    // aimed reticle: bullets leave along the exact screen centre, so the dot is where they land
+    const adsK = Math.max(0, Math.min(1, (ws.ads - 0.45) / 0.4));
+    const showRet = adsK > 0 && !scope && ws.state !== 'swap' && !p.downed;
+    this.adsRet.style.opacity = showRet ? String(adsK * (ws.state === 'reload' ? 0.45 : 1)) : '0';
+    if (showRet) {
+      const fov = (g.r.camera.fov * Math.PI) / 180;
+      const px = Math.tan((ws.spread * Math.PI) / 180) / Math.tan(fov / 2) * (layout.H / 2);
+      const rr = Math.min(90, px);
+      this.adsRing.style.display = rr >= 6 ? 'block' : 'none';
+      this.adsRing.style.width = this.adsRing.style.height = rr * 2 + 'px';
+      this.adsRing.style.left = this.adsRing.style.top = -rr + 'px';
     }
     this.hitT -= dt;
     if (this.hitT <= 0) this.hit.style.opacity = '0';

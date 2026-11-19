@@ -7,6 +7,7 @@ import { getSurface } from '../render/proceduralTextures';
 import { audio } from '../audio/audioEngine';
 import { bus } from '../core/events';
 import type { Zombie } from '../entities/zombie';
+import { groundY } from '../world/terrain';
 
 interface Drop { tier: (typeof ECONOMY.ammoDropTiers)[number]; x: number; z: number; t: number; spin: number }
 
@@ -96,7 +97,7 @@ export class Pickups {
       const blink = d.t > ECONOMY.ammoDropLifetime - 5 && Math.sin(d.t * 18) < 0;
       this.e.set(0, d.spin + d.t * 1.2, 0);
       this.q.setFromEuler(this.e);
-      this.v.set(d.x, 0.06 + Math.sin(d.t * 3) * 0.04, d.z);
+      this.v.set(d.x, 0.06 + Math.sin(d.t * 3) * 0.04 + groundY(d.x, d.z), d.z);
       this.s.setScalar(blink ? 0.001 : d.tier.scale);
       this.m.compose(this.v, this.q, this.s);
       this.mesh.setMatrixAt(i, this.m);

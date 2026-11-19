@@ -30,6 +30,11 @@ Round-based wave survival, first person, iPhone 16 Safari landscape, Netlify-hos
 - Enemies: Tethered walker/runner/sprinter, Hounds (special round), Brute (cage over chip), 2 bosses.
 
 ## Maps
+0. **Ravenmoor Grounds** (start here; dusk, open air, gentle hills) — front drive (start) → groundskeeper's yard
+   (power) / chapel → graveyard, courtyard → crash field with the downed courier plane (walk-in hull). The sealed
+   asylum and its signal tower (blue beacon) stand in the middle. Reaching **round 5** here unlocks the Asylum.
+   EE "Lights Out": flare pistol from the cockpit → ring 3 coffin bells (each wakes the graves) → power on → fire
+   the flare at the tower → hold the ground under it for 45 s → the beacon dies and every Tethered drops.
 1. **Ravenmoor Asylum** — reception → ward → operating theater → flooded boiler room (power) → courtyard.
    EE "Dead Air": 3 radio valves → console → dial frequency from ward note → boss **The Warden**.
 2. **Halcyon Signal Station** — loading dock → assembly line → generator hall (power) → control room → transmitter roof.

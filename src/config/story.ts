@@ -5,14 +5,21 @@
 export interface StoryCard { text: string; sub?: string }
 
 export const PROLOGUE: Record<string, StoryCard[]> = {
-  ravenmoor: [
+  grounds: [
     { text: '1944.', sub: 'The war has taught everyone to be afraid.' },
     { text: 'The Halcyon Signal Corps promised an army that never would be.' },
     { text: 'PROJECT TETHER', sub: 'A copper chip, stapled to the skull. A carrier tone. A creed.' },
     { text: 'Forty volunteers were sent to Ravenmoor Asylum to be "settled in".' },
+    { text: 'On the night of 3 March, Ravenmoor stopped answering the radio.' },
+    { text: 'A courier plane sent to find out why came down in the north field.' },
+    { text: 'Command sent one radio operator after it.', sub: 'You.' },
+    { text: 'You reach the gates just after sunset.', sub: 'Above the asylum, a blue light is listening.' },
+  ],
+  ravenmoor: [
+    { text: 'You survived the grounds.', sub: 'The asylum doors were never locked from the outside.' },
     { text: 'On the night of 3 March, the signal changed.', sub: 'Every chip started humming the same note.' },
-    { text: 'Ravenmoor stopped answering the radio.' },
-    { text: 'Command sent one radio operator to find out why.', sub: 'You.' },
+    { text: 'Forty beds. Forty volunteers.', sub: 'None of them are in their beds.' },
+    { text: 'The answer is inside.', sub: 'So are they.' },
   ],
   station: [
     { text: 'Three weeks after Ravenmoor fell silent…' },
@@ -25,6 +32,14 @@ export const PROLOGUE: Record<string, StoryCard[]> = {
 
 /** Keyed by map id, then zone letter. title = the card; line = the lore it whispers. */
 export const ROOM_LINES: Record<string, Record<string, { title: string; line: string }>> = {
+  grounds: {
+    A: { title: 'THE FRONT DRIVE', line: 'The gate is chained from the inside. Somebody wanted the visitors kept in.' },
+    B: { title: 'THE COURTYARD', line: 'The band played here every Sunday. The patients still gather, out of habit.' },
+    C: { title: 'THE GRAVEYARD', line: 'Forty graves, dug in February. Every coffin has a bell. Every bell has rung.' },
+    D: { title: 'THE CRASH FIELD', line: 'Halcyon Courier 7, carrying forty fresh chips. The tower called it down.' },
+    E: { title: 'GROUNDSKEEPER’S YARD', line: 'He kept the generator fuelled and the graves dug. He kept a ledger, too.' },
+    F: { title: 'THE CHAPEL', line: 'The candles are still burning. Nobody has lit them in a week.' },
+  },
   ravenmoor: {
     A: { title: 'RECEPTION HALL', line: 'Visiting hours ended in 1943. Nobody told the patients.' },
     B: { title: 'THE PATIENT WARD', line: 'Forty beds. Forty volunteers. All of them still humming the same note.' },

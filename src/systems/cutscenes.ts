@@ -8,8 +8,9 @@ import { PROLOGUE, ROOM_LINES, BOSS_LINES, type StoryCard } from '../config/stor
 import { K } from '../world/grid';
 import { smoothstep } from '../core/math';
 import type { Boss } from '../entities/bosses/boss';
+import { groundY } from '../world/terrain';
 
-interface Shot { from: THREE.Vector3; to: THREE.Vector3; lookFrom: THREE.Vector3; lookTo: THREE.Vector3; dur: number }
+interface Shot { from: THREE.Vector3; to: THREE.Vector3; lookFrom: THREE.Vector3; lookTo: THREE.Vector3; dur: number; /** look targets are absolute heights (sky landmarks) */ absLook?: boolean }
 interface Card { at: number; dur: number; text: string; sub?: string; kind: 'prologue' | 'title' | 'caption' }
 interface Scene {
   id: string;
@@ -92,8 +93,30 @@ export class Cutscenes {
       const b = clampIn(eye.clone().addScaledVector(right, -2.5).addScaledVector(fwd, 1.5).setY(ceil - 0.3));
       shots.push({ from: a, to: b, lookFrom: eye.clone().addScaledVector(fwd, -3).setY(0.6), lookTo: eye.clone().addScaledVector(fwd, 3).setY(0.8), dur: t });
     }
-    // establishing sweep that lands in the player's eyes
     const lines = ROOM_LINES[map]?.[zd?.letter ?? ''];
+    const lm = g.world.def.landmark;
+    if (lm) {
+      // open-air map: start low inside the main gate looking up at the landmark, crane up
+      // over the drive toward it, then drop back into the player's eyes
+      const zMax = g.world.grid.h - 8;
+      const beacon = V(lm.x, lm.y, lm.z), clock = V(lm.x, lm.y - 20, lm.z);
+      const g0 = V(eye.x + 1.6, 1.1, Math.min(zMax, eye.z + 16));
+      const g1 = V(eye.x - 1.2, 2.4, Math.min(zMax - 6, eye.z + 9));
+      const c1 = V(eye.x + 3.5, 9.5, eye.z - 11);
+      const look = this.playerLook();
+      look.y += groundY(eye.x, eye.z);
+      shots.push({ from: g0, to: g1, lookFrom: beacon.clone().setY(lm.y - 9), lookTo: beacon, dur: 5.0, absLook: true });
+      shots.push({ from: g1.clone(), to: c1, lookFrom: beacon, lookTo: clock, dur: 4.6, absLook: true });
+      shots.push({ from: c1.clone(), to: eye.clone(), lookFrom: clock, lookTo: look, dur: 2.4, absLook: true });
+      cards.push({ at: t + 0.4, dur: 4.2, text: g.world.def.name.toUpperCase(), sub: lines ? lines.title : undefined, kind: 'title' });
+      if (lines) cards.push({ at: t + 1.0, dur: 3.8, text: lines.line, kind: 'caption' });
+      cards.push({ at: t + 5.4, dur: 4.0, text: 'Above the asylum, the blue light listens through every chip on the estate.', kind: 'caption' });
+      sounds.push({ at: t + 0.15, name: 'stg_roundEnd', vol: 0.55 });
+      this.play({ id: 'intro', shots, cards, sounds, darkUntil: first ? t : 0 });
+      if (first) { save.seen.push('prologue:' + map); persist(); }
+      return;
+    }
+    // establishing sweep that lands in the player's eyes
     const s0 = shots.length ? shots[shots.length - 1].to.clone() : clampIn(eye.clone().addScaledVector(fwd, -2.8).addScaledVector(right, 2.4).setY(Math.min(ceil, 3.0)));
     const l0 = shots.length ? shots[shots.length - 1].lookTo.clone() : eye.clone().addScaledVector(fwd, 4).setY(0.9);
     const mid = clampIn(eye.clone().addScaledVector(fwd, -1.4).addScaledVector(right, -0.6).setY(2.1));
@@ -289,8 +312,11 @@ export class Cutscenes {
       t -= sh.dur;
     }
     const e = smoothstep(0, 1, k);
+    // shots are authored over flat ground; lift them onto the terrain
     cam.position.lerpVectors(shot.from, shot.to, e);
+    cam.position.y += groundY(cam.position.x, cam.position.z);
     this.tmpLook.lerpVectors(shot.lookFrom, shot.lookTo, e);
+    if (!shot.absLook) this.tmpLook.y += groundY(this.tmpLook.x, this.tmpLook.z);
     cam.up.set(0, 1, 0);
     cam.lookAt(this.tmpLook);
   }

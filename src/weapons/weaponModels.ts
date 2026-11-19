@@ -455,7 +455,7 @@ export function buildHand(right: boolean): THREE.Group {
   const k = new Kit();
   const s = right ? 1 : -1;
   // forearm sleeve (along +Z back toward the camera)
-  k.add('grip', cyl(0.034, 0.04, 0.3, 10), 0, 0, 0.17, 0, Math.PI / 2, 0, 0x33331f);
+  k.add('grip', cyl(0.034, 0.05, 0.7, 10), 0, 0, 0.37, 0, Math.PI / 2, 0, 0x33331f); // long enough to leave the screen when aimed
   k.add('grip', cyl(0.042, 0.042, 0.04, 10), 0, 0, 0.05, 0, Math.PI / 2, 0, 0x3a3a26);
   // glove palm + fingers wrapping the grip
   k.add('grip', rbox(0.05, 0.07, 0.06, 0.018), 0, 0, 0.0, 0, 0, 0, 0x3a2618);

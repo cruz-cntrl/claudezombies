@@ -30,6 +30,9 @@ import { Pickups } from './systems/pickups';
 import { Cutscenes } from './systems/cutscenes';
 import { EasterEggs } from './systems/easterEggs';
 import type { Boss } from './entities/bosses/boss';
+import { groundY } from './world/terrain';
+import { MAPS } from './world/maps';
+import { isUnlocked, markUnlocked } from './core/save';
 
 /**
  * One play session on one map. Owns the world and all gameplay systems.
@@ -168,6 +171,13 @@ export class Game {
       bus.on('roundStart', (e) => {
         this.hud.message(e.special === 'hounds' ? 'THE STATIC STORM' : `ROUND ${e.round}`, e.special === 'hounds' ? 'Chipped hounds are loose' : undefined, 3, e.special === 'hounds' ? '#e2392e' : undefined);
         if (e.special === 'hounds') audio.play('ui_alarm', { bus: 'ui', vol: 0.8 });
+        // reaching a gate round opens the next map (Grounds round 5 → the Asylum)
+        for (const m of Object.values(MAPS)) {
+          if (m.unlock?.map === this.world.def.id && e.round >= m.unlock.round && !isUnlocked(m) && markUnlocked(m.id)) {
+            setTimeout(() => this.hud.message('THE ASYLUM DOORS GIVE WAY', `${m.name} is open — choose it from the map menu`, 5, '#4ff0e8'), 3200);
+            audio.play('ui_eeStep', { bus: 'ui', delay: 3.2 });
+          }
+        }
       }),
       bus.on('zombieKilled', () => { /* stats handled in combat */ }),
     );
@@ -184,6 +194,9 @@ export class Game {
     r.scene.add(world.group);
     r.scene.fog = new THREE.FogExp2(def.fogColor, def.fogDensity);
     r.scene.background = new THREE.Color(def.fogColor);
+    // open-air maps need a longer view for the tower and the ridge line
+    r.camera.far = def.outdoor ? 240 : 120;
+    r.camera.updateProjectionMatrix();
     world.setupLightPool(r.scene, r.preset.practicalLights);
     return world;
   }
@@ -305,7 +318,7 @@ export class Game {
       if (p.downTimer <= 0) this.revive();
     }
     this.world.flow.update(Math.floor(p.pos.x), Math.floor(p.pos.z));
-    this.camPos.set(p.pos.x, p.eye, p.pos.z);
+    this.camPos.set(p.pos.x, p.eye + groundY(p.pos.x, p.pos.z), p.pos.z);
     if (!this.over) ws.update(dt, this.input, this.combat, this.camPos);
     // grenade preview
     if (ws.cookT >= 0) {
@@ -361,7 +374,7 @@ export class Game {
     const zoom = inScene ? 1 : 1 + ((ws.current?.stats.adsZoom ?? 1) - 1) * ws.ads;
     cam.fov = this.r.baseFov / zoom;
     cam.updateProjectionMatrix();
-    this.r.vmCamera.fov = 58 - ws.ads * 8;
+    this.r.vmCamera.fov = 58; // the gun does not magnify with ADS zoom: it stays small and out of the way
     this.r.vmCamera.updateProjectionMatrix();
     const f = p.forward(this.tmpV);
     this.playerLamp.position.set(cam.position.x - f.x * 0.6, cam.position.y + 0.35, cam.position.z - f.z * 0.6);

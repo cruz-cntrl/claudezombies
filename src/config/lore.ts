@@ -1,4 +1,4 @@
-/** Lore notes for both maps. `{D}` is replaced at runtime by a keypad digit (Halcyon Station). */
+/** Lore notes for every map. `{D}` is replaced at runtime by a keypad digit (Halcyon Station). */
 export interface LoreNote { id: string; map: string; title: string; stamp?: string; body: string }
 
 export const LORE: LoreNote[] = [
@@ -81,6 +81,53 @@ Power the three relays. Hold them. Punch the four fragments into the control-roo
 
 It will come for you when you do. Shoot whatever glows.`,
   },
+  {
+    id: 'note11', map: 'grounds', title: 'Pilot’s Logbook — Halcyon Courier 7', stamp: 'HALCYON S.C.',
+    body: `03.III.44. Cargo: 40 replacement chips, crated, for Ravenmoor. Weather fair.
+
+18:20 — compass spinning. Radio full of a tone I can feel in my teeth.
+
+18:31 — Jessop says the tower light is "calling us down". He has stopped answering to Jessop.
+
+18:34 — he has his hand on the stick and he is smiling and he is humming and I cannot
+
+[the rest of the page is scorched]`,
+  },
+  {
+    id: 'note12', map: 'grounds', title: 'Groundskeeper’s Ledger',
+    body: `Feb. — Dug forty graves on the Director’s orders. In advance. He would not say why.
+
+Feb. — Fitted a bell to every coffin, as he asked. "In case they wake," he said, and laughed.
+
+2 March — Stopped laughing. Three bells rang in the night. Nobody was in those graves yet.
+
+They ring when the light on the tower changes. I have started to understand the pattern. I wish I hadn’t.`,
+  },
+  {
+    id: 'note13', map: 'grounds', title: 'Notice — Nailed to the Main Gate', stamp: 'BY ORDER',
+    body: `RAVENMOOR ESTATE — HALCYON SIGNAL CORPS
+
+Visitors will report to the Front Drive and wait.
+Visitors will not enter the asylum.
+Visitors will NOT look directly at the tower light.
+
+Any visitor found humming will be detained for their own comfort.
+
+Peace Through Signal.`,
+  },
+  {
+    id: 'note14', map: 'grounds', title: 'Chalked Inside the Mausoleum Door',
+    body: `the light on the tower is not a lamp it is an EAR
+
+it listens through the chips and the chips listen through us
+
+the bells wake it up. a flare blinds it. the pilot had a flare gun I saw it
+
+you would have to stand under the tower while it burned. nobody would be that stupid
+
+— E.`,
+  },
 ];
+
 
 export const FREQUENCIES = ['5.40', '7.15', '9.85', '11.20'];
