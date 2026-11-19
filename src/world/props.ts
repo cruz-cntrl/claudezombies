@@ -451,6 +451,15 @@ export function themeProp(theme: PropTheme, r: RNG): Build {
   return list[0][0];
 }
 
+/**
+ * Round colliders for props that don't fill their cell (radius in metres). Anything not listed
+ * collides as the whole 1 m cell. Used for player / Tethered collision and bullet traces.
+ */
+export const PROP_RADIUS = new Map<Build, number>([
+  [bareOak, 0.34], [conifer, 0.42], [deadTree, 0.26], [statue, 0.48], [signpost, 0.14], [stump, 0.42],
+  [rock, 0.55], [crossMarker, 0.16], [ivStand, 0.2],
+]);
+
 /** Two-cell props by theme (placed when two 'x' cells are adjacent). */
 export const DOUBLE_PROPS: Partial<Record<PropTheme, Build[]>> = {
   ward: [bed, bed, gurney],

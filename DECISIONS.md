@@ -116,3 +116,35 @@ Choices made where the brief was ambiguous, with the reasoning.
     150–310 k triangles on the Grounds.
 45. **Unlocks.** Ravenmoor Asylum unlocks the moment round 5 starts on the Grounds (any difficulty). Players who
     already have an Asylum score keep it unlocked. Halcyon Signal Station stays open as before.
+46. **Jump, vault, climb.** JUMP (touch button / Space) hops ~0.7 m. Next to low cover (sandbags, gravestones,
+    benches, plane wings) the same button vaults you over, but only into the same area, so paid gates can't be
+    skipped. Fences, hedges and walls are never vaultable. Ladders attach when you walk into them; "forward" moves
+    the way you face (toward the ladder = up, facing away or looking down = down), JUMP lets go.
+47. **The lookout tower** (Front Drive) is a 5 m platform with a roofed hut and a searchlight. While you're up there
+    the horde paths to the ladder and climbs one at a time; hounds and Brutes can't climb and circle below. It's a
+    strong spot, not a safe one.
+48. **Hounds hunt as a pack** instead of sprinting straight in: they run in a little slower than your sprint, circle
+    you at ~5.5 m, and at most two charge at once (with a snarl as the tell). After a bite they peel away. Damage
+    20 (was 30), wind-up 0.45 s, cooldown 1.4 s, fewer per round with a cap on how many are loose at once. A player
+    who doesn't fight back now lasts ~7–8 s against a pack (was ~2 s).
+49. **Smarter Tethered.** They spread round you in an arc instead of filing in a line, clamber over low cover
+    (slowly, with a hop) instead of jamming behind it, and on open maps some claw up out of the ground behind or
+    beside you so a big map never leaves you waiting.
+50. **Collisions match the props.** Trees, statues, signposts and rocks collide (and stop bullets) as their trunk or
+    base, not a whole 1 m block; lamp posts, note stands and bell posts are now solid. Grounds decor is placed last
+    with a spacing check so branches, lamps and headstones never clip into walls, fences, machines or each other.
+51. **No arms on the viewmodel.** The guns, knife, grenade and tonic float on their own (`SHOW_ARMS` in
+    `weapons/viewmodel.ts`). Aiming always cancels sprinting, and the run pose blends out as you aim, so the two
+    poses can no longer stack.
+52. **Flare pistol clarity.** Picking it up spells out the remaining steps; the easter-egg line on the HUD tracks
+    them (bells n/3 → power → "fire from the red marker"); a red light pillar marks the firing spot once you're ready,
+    with a large, quick prompt there.
+53. **Auto-fire while aiming (touch).** Aimed in (ADS ≥ 75 %) with the red dot on a Tethered or boss, every gun
+    fires on its own — semi-autos at their normal held-trigger cadence, launchers only when the target is more than
+    7 m away. Off in Settings → "Auto-fire while aiming at a target". Keyboard/mouse players are unaffected.
+54. **Faster aiming.** Default aim sensitivity 1.25 (was 0.7) and zoom only halves its slowdown; existing saves are
+    raised to the new default once (save `settingsVersion` 2). Look and aim speed sliders are on the pause screen.
+55. **One story.** All notes, prologues, room lines, boss lines and easter-egg text were rewritten around one arc:
+    the chips set brain activity by frequency → their echoes formed a hivemind in the signal (the Chorus) →
+    Director Hale is trying to master it (beacon → Warden → Mother Transmitter). See GAME_DESIGN.md → Story.
+56. **Station unlock.** Halcyon Signal Station opens at round 5 in the Asylum (existing Station players keep it).

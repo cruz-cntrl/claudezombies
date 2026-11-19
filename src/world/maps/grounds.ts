@@ -10,6 +10,7 @@ import { bakedStandard } from '../../render/materials';
 import { K } from '../grid';
 import type { BuildContext } from '../mapBuilder';
 import { mulberry32 } from '../../core/math';
+import type { Ladder } from '../ladders';
 
 /**
  * MAP 0 — RAVENMOOR GROUNDS (3 March 1944, just after sunset)
@@ -47,6 +48,35 @@ const SHED = { x: P(10), z: P(50) };
 const GLASS = { x: P(26), z: P(64) };
 const CHAPEL = { x: P(88), z: P(66) };
 const FOUNT = { x: GX - 1, z: P(69) };
+/** The lookout tower in the front drive (3×3 footing, ladder on its south face) */
+const TOWER = { x: P(75), z: P(70) + 1, top: 5.0 };
+
+/**
+ * Decor (trees, lamps, graves, scattered cover) is placed last and only where it has room, so
+ * branches, lamps and headstones never clip into walls, fences, buildings, machines or each other.
+ */
+const decoQueue: [number, number, string][] = [];
+const deco = (x: number, y: number, ch: string) => decoQueue.push([x, y, ch]);
+function flushDeco() {
+  const STRUCT = /[#w%ft,qpcrsb*e1-9]/;
+  const reach: Record<string, number> = { x: 3, l: 1, v: 2, o: 1 };
+  const fits = (x: number, y: number, ch: string) => {
+    const R = reach[ch] ?? 1;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const c = L.g[y + dy]?.[x + dx];
+      if (c === undefined || STRUCT.test(c)) return false;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) <= 1 && !/[A-F]/.test(c)) return false;
+    }
+    return true;
+  };
+  for (const [x, y, ch] of decoQueue) {
+    let done = false;
+    for (let r = 0; r <= 2 && !done; r++) for (let dy = -r; dy <= r && !done; dy++) for (let dx = -r; dx <= r && !done; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      if (fits(x + dx, y + dy, ch)) { L.set(x + dx, y + dy, ch); done = true; }
+    }
+  }
+}
 
 L.outside(0, 0, W - 1, H - 1);
 // estate wall
@@ -96,9 +126,9 @@ for (let y = 0; y < 5; y++) for (let x = 0; x < 3; x++) L.set(P(44) + x, P(79) +
 L.set(BX0 + 4, AY, 'p', 'secondwind');
 L.set(GX - 9, AY, 'b', 'warden').set(GX + 10, AY, 'b', 'fieldmarshal');
 L.set(P(70), SW - 1, 'c', 'crateA');
-for (const [x, y] of [[50, 64], [61, 64], [50, 84], [61, 84], [72, 72], [66, 76], [44, 74]]) L.set(P(x), P(y), 'l');
-for (const [x, y] of [[42, 62], [42, 87], [68, 86], [78, 63], [78, 86], [44, 68], [67, 66], [50, 88], [75, 70], [48, 66]]) L.set(P(x), P(y), 'x');
-for (const [x, y] of [[62, 80], [63, 80], [48, 73], [73, 80], [70, 68], [52, 76]]) L.set(P(x), P(y), 'o');
+for (const [x, y] of [[50, 64], [61, 64], [50, 84], [61, 84], [72, 72], [66, 76], [44, 74]]) deco(P(x), P(y), 'l');
+for (const [x, y] of [[42, 62], [42, 87], [68, 86], [78, 63], [78, 86], [44, 68], [67, 66], [50, 88], [75, 70], [48, 66]]) deco(P(x), P(y), 'x');
+for (const [x, y] of [[62, 80], [63, 80], [48, 73], [73, 80], [70, 68], [52, 76]]) deco(P(x), P(y), 'o');
 L.set(GX - 4, SW - 2, 'e', 'note13').set(P(78), SW - 2, 'e', 'musicbox1').set(GX, AY + 2, 'e', 'beaconBase');
 
 // ---------------------------------------------------------------- B: courtyard
@@ -108,8 +138,8 @@ L.set(BX1 + 1, P(40), 'p', 'ironhide');
 L.set(BX1 + 1, P(52), 'r');
 L.set(EW - 1, P(36), 'b', 'chatterbox');
 L.set(EW - 1, P(46), 'c', 'crateB');
-for (const [x, y] of [[78, 38], [98, 38], [78, 54], [98, 54], [88, 36]]) L.set(P(x), P(y), 'l');
-for (const [x, y] of [[76, 36], [101, 36], [76, 56], [101, 56], [84, 50], [94, 40], [104, 46], [74, 46]]) L.set(P(x), P(y), 'x');
+for (const [x, y] of [[78, 38], [98, 38], [78, 54], [98, 54], [88, 36]]) deco(P(x), P(y), 'l');
+for (const [x, y] of [[76, 36], [101, 36], [76, 56], [101, 56], [84, 50], [94, 40], [104, 46], [74, 46]]) deco(P(x), P(y), 'x');
 // clipped hedge parterre around the bandstand
 {
   const x0 = GZ.x - 7, x1 = GZ.x + 9, y0 = GZ.z - 6, y1 = GZ.z + 8;
@@ -123,15 +153,15 @@ L.rect(TOMB.x, TOMB.z, TOMB.x + 5, TOMB.z + 4, '%');   // mausoleum
 for (let y = 10; y < FY - 1; y += 4) for (let x = 9; x < FX - 1; x += 3) {
   if (Math.abs(x - P(21)) <= 1) continue;                                         // central path
   if (y >= TOMB.z - 2 && y <= TOMB.z + 6 && x >= TOMB.x - 2 && x <= TOMB.x + 7) continue; // around the tomb
-  if (rng() < 0.8) L.set(x, y, 'o');
+  if (rng() < 0.8) deco(x, y, 'o');
 }
-for (const [x, y] of [[12, 12], [31, 13], [27, 21], [10, 37], [33, 38], [24, 33], [16, 18], [35, 26]]) L.set(P(x), P(y), 'v');
+for (const [x, y] of [[12, 12], [31, 13], [27, 21], [10, 37], [33, 38], [24, 33], [16, 18], [35, 26]]) deco(P(x), P(y), 'v');
 L.set(P(11), P(20) + 1, 'e', 'bell1').set(P(34), P(29) + 1, 'e', 'bell2').set(P(25), P(41) + 1, 'e', 'bell3');
 L.set(6, P(30), 'p', 'packmule');
 L.set(6, P(40), 'b', 'trench');
 L.set(P(26), 6, 'c', 'crateC');
-for (const [x, y] of [[16, 9], [29, 26], [16, 38], [33, 9], [8, 22]]) L.set(P(x), P(y) + 1, 'l');
-for (const [x, y] of [[7, 7], [37, 7], [20, 16], [7, 25], [37, 22], [30, 43], [13, 43], [24, 8], [36, 34]]) L.set(P(x), P(y), 'x');
+for (const [x, y] of [[16, 9], [29, 26], [16, 38], [33, 9], [8, 22]]) deco(P(x), P(y) + 1, 'l');
+for (const [x, y] of [[7, 7], [37, 7], [20, 16], [7, 25], [37, 22], [30, 43], [13, 43], [24, 8], [36, 34]]) deco(P(x), P(y), 'x');
 L.set(TOMB.x + 3, TOMB.z + 6, 'e', 'note14');
 
 // ---------------------------------------------------------------- D: crash field
@@ -145,19 +175,19 @@ L.set(TOMB.x + 3, TOMB.z + 6, 'e', 'note14');
   for (let y = 2; y <= 10; y++) for (let x = 5; x <= 7; x++) L.set(px + x, pz + y, 'o'); // starboard wing
   for (let x = -6; x <= 2; x++) for (let y = -8; y <= -6; y++) L.set(px + x, pz + y, 'o'); // port wing
   L.set(px + 2, pz, 'e', 'flaregun').set(px + 17, pz, 'e', 'note11');
-  for (const [x, y] of [[44, 21], [70, 12], [60, 25]]) L.set(P(x), P(y), 'v');
+  for (const [x, y] of [[44, 21], [70, 12], [60, 25]]) deco(P(x), P(y), 'v');
 }
 L.set(EW - 1, P(12), 'p', 'rapidfire');
 L.set(P(80), 6, 'b', 'longshot');
 L.set(P(62) + 3, 6, 'c', 'crateD');
-for (const [x, y] of [[86, 20], [97, 28], [45, 27], [76, 12], [98, 10]]) L.set(P(x), P(y), 'l');
+for (const [x, y] of [[86, 20], [97, 28], [45, 27], [76, 12], [98, 10]]) deco(P(x), P(y), 'l');
 for (let n = 0; n < 34; n++) {
   const x = P(80) + Math.floor(rng() * (EW - P(80) - 1)), y = 8 + Math.floor(rng() * (DY - 10));
-  if (L.g[y][x] === 'D') L.set(x, y, 'x');
+  if (L.g[y][x] === 'D') deco(x, y, 'x');
 }
 for (let n = 0; n < 8; n++) {
   const x = FX + 3 + Math.floor(rng() * (P(78) - FX)), y = 8 + Math.floor(rng() * (DY - 10));
-  if (L.g[y][x] === 'D') L.set(x, y, 'x');
+  if (L.g[y][x] === 'D') deco(x, y, 'x');
 }
 for (let x = 0; x < 7; x++) { L.set(P(41) + x, P(29), 'o'); L.set(P(64) + x, P(28) + 1, 'o'); L.set(P(88) + x, P(14), 'o'); }
 L.set(P(100), P(8), 'e', 'musicbox3');
@@ -170,10 +200,10 @@ L.set(SHED.x + 7, SHED.z - 1, 'q', 'genset').set(SHED.x + 8, SHED.z - 1, 'q', 'g
 L.set(6, P(66), 'p', 'fleetfoot');
 L.set(6, P(84) + 2, 'b', 'typewriter');
 L.set(P(30), SW - 1, 'c', 'crateE');
-for (const [x, y] of [[21, 51], [12, 71], [30, 80], [20, 60], [34, 72]]) L.set(P(x), P(y), 'l');
-for (let y = P(74); y <= SW - 4; y += 4) for (let x = P(19); x <= FX - 3; x += 4) L.set(x + ((y >> 2) % 2 ? 2 : 0), y, 'x'); // orchard
-for (const [x, y] of [[8, 48], [24, 50], [36, 55], [8, 60], [20, 62], [36, 62], [9, 74]]) L.set(P(x), P(y), 'x');
-for (const [x, y] of [[22, 56], [28, 58], [10, 66]]) L.set(P(x), P(y), 'o');
+for (const [x, y] of [[21, 51], [12, 71], [30, 80], [20, 60], [34, 72]]) deco(P(x), P(y), 'l');
+for (let y = P(74); y <= SW - 4; y += 4) for (let x = P(19); x <= FX - 3; x += 4) deco(x + ((y >> 2) % 2 ? 2 : 0), y, 'x'); // orchard
+for (const [x, y] of [[8, 48], [24, 50], [36, 55], [8, 60], [20, 62], [36, 62], [9, 74]]) deco(P(x), P(y), 'x');
+for (const [x, y] of [[22, 56], [28, 58], [10, 66]]) deco(P(x), P(y), 'o');
 L.set(SHED.x + 3, SHED.z + 5, 'e', 'note12');
 
 // ---------------------------------------------------------------- F: chapel
@@ -183,10 +213,15 @@ L.set(P(85), P(84), 'q', 'well');
 L.set(EW - 1, P(64), 'p', 'quickhands');
 L.set(EW - 1, P(76), 'b', 'hollowpoint');
 L.set(P(92), SW - 1, 'c', 'crateF');
-for (const [x, y] of [[86, 62], [101, 62], [86, 77], [96, 86]]) L.set(P(x), P(y), 'l');
-for (let y = CHAPEL.z + 10; y <= SW - 4; y += 2) for (let x = CHAPEL.x; x <= CHAPEL.x + 10; x += 2) if (rng() < 0.65) L.set(x, y, 'o');
-for (const [x, y] of [[84, 60], [104, 60], [84, 70], [103, 72], [99, 88], [90, 62], [84, 88]]) L.set(P(x), P(y), 'x');
-L.set(CHAPEL.x + 10, CHAPEL.z, 'v').set(P(91), P(80) + 2, 'v');
+for (const [x, y] of [[86, 62], [101, 62], [86, 77], [96, 86]]) deco(P(x), P(y), 'l');
+for (let y = CHAPEL.z + 10; y <= SW - 4; y += 2) for (let x = CHAPEL.x; x <= CHAPEL.x + 10; x += 2) if (rng() < 0.65) deco(x, y, 'o');
+for (const [x, y] of [[84, 60], [104, 60], [84, 70], [103, 72], [99, 88], [90, 62], [84, 88]]) deco(P(x), P(y), 'x');
+deco(CHAPEL.x + 10, CHAPEL.z, 'v'); deco(P(91), P(80) + 2, 'v');
+
+// ---------------------------------------------------------------- the lookout tower (A)
+L.rect(TOWER.x, TOWER.z, TOWER.x + 2, TOWER.z + 2, 't');
+
+flushDeco();
 
 // ---------------------------------------------------------------- terrain
 /** Rolling estate ground: soft hills, the graveyard knoll, a gouge where the plane came down. */
@@ -298,13 +333,15 @@ function decorate(ctx: BuildContext) {
   chapel(ctx);
   mainGate(ctx);
   drive(b);
+  lookoutTower(ctx);
   treeLine(ctx);
   // coffin bells (easter egg anchors) get their little gallows
   for (const m of grid.markers) if (m.ch === 'e' && m.id?.startsWith('bell')) {
-    const base = M(m.i + 0.5, 0, m.j + 0.5, r() * 6);
-    b.add('surf:wood', box(0.08, 1.9, 0.08), at(base, -0.35, 0.95, 0), 0x4a3a2a);
-    b.add('surf:wood', box(0.55, 0.07, 0.07), at(base, -0.1, 1.88, 0), 0x4a3a2a);
-    b.add('plain:dirt', box(0.9, 0.12, 1.8), at(base, 0.2, 0.06, 0.1), 0x4a3a28); // fresh grave
+    const base = M(m.i + 0.5, 0, m.j + 0.5);
+    b.add('surf:wood', box(0.09, 1.95, 0.09), at(base, 0, 0.97, 0), 0x4a3a2a);          // post (its collider)
+    b.add('surf:wood', box(0.55, 0.07, 0.07), at(base, 0.24, 1.9, 0), 0x4a3a2a);        // arm the bell hangs from
+    b.add('plain:dirt', box(0.9, 0.12, 1.7), at(base, 0.35, 0.06, 0.95), 0x4a3a28);     // fresh grave beside it
+    void r;
   }
 }
 
@@ -516,7 +553,7 @@ function plane(ctx: BuildContext) {
   const M = (x = 0, y = 0, z = 0, ry = 0, rx = 0, rz = 0, sx = 1, sy = sx, sz = sx) => MB(x + ox, y, z + oz, ry, rx, rz, sx, sy, sz);
   const addLight = (x: number, y: number, z: number, c: number, i: number, rad: number, f: number) => ctx.addLight(x + ox, y, z + oz, c, i, rad, f, 'none');
   const r = mulberry32(31);
-  const zc = 16.5, yc = 1.15, R = 1.32;
+  const zc = 16.5, yc = 0.95, R = 1.32;
   const skin = 0x5a6048, belly = 0x4a4c40;
   const hull = (xa: number, xb: number, tilt: number) => {
     const len = xb - xa;
@@ -545,9 +582,11 @@ function plane(ctx: BuildContext) {
     b.add('plain:paint', box(0.8 + r() * 0.6, 0.04, 0.5 + r() * 0.4), M(60.8 - r() * 0.5, yc + Math.sin(a) * R, zc + Math.cos(a) * R, a, r() - 0.5, r() - 0.5), skin);
   }
   // seats + cargo inside the rear section (crates of chips)
-  for (let x = 61.6; x < 68; x += 1.3) {
-    crate(b, M(x, 0.05, zc + 0.75, r()), r);
-    if (r() > 0.5) barrel(b, M(x + 0.5, 0.05, zc - 0.85, 0), r);
+  // cargo: small crates of replacement chips stacked against the hull (clear of the walkway)
+  for (let x = 61.6; x < 68; x += 1.1) for (const sd of [-1, 1]) {
+    if (r() < 0.35) continue;
+    const s = 0.34 + r() * 0.1;
+    b.add('surf:wood', rbox(s, s, s, 0.02), M(x + (r() - 0.5) * 0.2, 0.06 + s / 2, zc + sd * (0.52 + s / 2), r() * 0.3), 0xa89070);
   }
   // yellow identification band + Halcyon lightning emblem
   b.add('plain:paint', cyl(R + 0.01, R + 0.01, 0.5, 16, true), M(64, yc, zc, 0, 0, Math.PI / 2 + 0.04), 0xa08a30);
@@ -731,6 +770,58 @@ function treeLine(ctx: BuildContext) {
   skirtMat.side = THREE.DoubleSide;
   ctx.group.add(skirt);
   void bench; void rbox;
+}
+
+/**
+ * Lookout tower: timber legs, a plank platform with a railing and a roofed hut on top, a ladder
+ * on the south face. The platform and ladder are published as a `Ladder` for player / Tethered.
+ */
+function lookoutTower(ctx: BuildContext) {
+  const b = ctx.batch;
+  const x0 = TOWER.x, z0 = TOWER.z, x1 = x0 + 3, z1 = z0 + 3, top = TOWER.top;
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const timber = 0x6a5038, dark = 0x4a3828;
+  // legs + bracing
+  const legs: [number, number][] = [[x0 + 0.15, z0 + 0.15], [x1 - 0.15, z0 + 0.15], [x0 + 0.15, z1 - 0.15], [x1 - 0.15, z1 - 0.15]];
+  for (const [lx, lz] of legs) b.add('surf:wood', box(0.22, top + 3.3, 0.22), M(lx, (top + 3.3) / 2, lz), timber);
+  for (const y of [1.6, 3.5]) {
+    for (const zz of [z0 + 0.15, z1 - 0.15]) b.add('surf:wood', box(3.0, 0.12, 0.1), M(cx, y, zz), dark);
+    for (const xx of [x0 + 0.15, x1 - 0.15]) b.add('surf:wood', box(0.1, 0.12, 3.0), M(xx, y, cz), dark);
+  }
+  for (const zz of [z0 + 0.15, z1 - 0.15]) for (const sgn of [1, -1]) b.add('surf:wood', box(3.4, 0.09, 0.08), M(cx, 2.55, zz, 0, 0, sgn * 0.62), dark);
+  for (const xx of [x0 + 0.15, x1 - 0.15]) for (const sgn of [1, -1]) b.add('surf:wood', box(0.08, 0.09, 3.4), M(xx, 2.55, cz, 0, sgn * 0.62, 0), dark);
+  // platform deck (slightly larger than the footing) + railing (gap at the ladder)
+  b.add('surf:wood', box(3.4, 0.16, 3.4), M(cx, top - 0.08, cz), 0x8a7050);
+  for (let k = 0; k < 7; k++) b.add('surf:wood', box(3.4, 0.02, 0.04), M(cx, top + 0.005, z0 - 0.2 + k * 0.56), 0x5a4430);
+  const rail = (ax: number, az: number, bx: number, bz: number) => {
+    const len = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(bx - ax, bz - az);
+    for (const y of [0.5, 1.05]) b.add('surf:wood', box(0.07, 0.07, len), M((ax + bx) / 2, top + y, (az + bz) / 2, yaw), timber);
+    b.add('surf:wood', box(len, 0.55, 0.04), M((ax + bx) / 2, top + 0.3, (az + bz) / 2, yaw + Math.PI / 2), dark); // half-wall planks
+  };
+  const ex0 = x0 - 0.2, ez0 = z0 - 0.2, ex1 = x1 + 0.2, ez1 = z1 + 0.2;
+  rail(ex0, ez0, ex1, ez0); rail(ex0, ez0, ex0, ez1); rail(ex1, ez0, ex1, ez1);
+  rail(ex0, ez1, cx - 0.45, ez1); rail(cx + 0.45, ez1, ex1, ez1);
+  // hut roof on the corner posts
+  b.add('plain:slate', gableRoof(3.9, 3.9, 1.1), M(cx, top + 2.25, cz), 0x3a3430);
+  b.add('surf:wood', box(3.9, 0.12, 3.9), M(cx, top + 2.2, cz), dark);
+  // searchlight on a pivot + a crate of flares
+  b.add('plain:iron', cyl(0.05, 0.05, 1.0, 6), M(x0 + 0.6, top + 0.5, z0 + 0.6), 0x2a2a2a);
+  b.add('plain:iron', cyl(0.28, 0.22, 0.55, 12), M(x0 + 0.6, top + 1.15, z0 + 0.6, -0.8, Math.PI / 2 - 0.25), 0x3a3c3a);
+  b.add('glow', cyl(0.25, 0.25, 0.02, 12), M(x0 + 0.6 - 0.2, top + 1.2, z0 + 0.6 - 0.2, -0.8, Math.PI / 2 - 0.25), 0x6a6a50);
+  crate(b, M(x1 - 0.6, top, z0 + 0.6, 0.3), ctx.rng);
+  // ladder up the south face
+  const lx = cx, lz = z1 + 0.12;
+  for (const s of [-0.24, 0.24]) b.add('surf:wood', box(0.07, top + 1.0, 0.07), M(lx + s, (top + 1.0) / 2, lz), timber);
+  for (let y = 0.3; y < top + 0.9; y += 0.32) b.add('surf:wood', box(0.5, 0.045, 0.05), M(lx, y, lz), 0x7a6044);
+  // a lantern in the hut
+  ctx.addLight(cx, top + 1.8, cz, 0xffb35a, 0.8, 6, 0.3, 'none');
+  const ladder: Ladder = {
+    bx: lx, bz: z1 + 0.45, nx: 0, nz: -1, top,
+    tx: lx, tz: z1 - 0.45,
+    rect: { x0: x0 - 0.1, z0: z0 - 0.1, x1: x1 + 0.1, z1: z1 + 0.1 },
+    occupant: null,
+  };
+  ctx.expose('ladders', [ladder]);
 }
 
 function gazebo(b: GeoBatch, x: number, z: number) {

@@ -1,4 +1,4 @@
-import { ROUNDS, zombieCount, zombieHealth, spawnDelay, speedMix, houndCount } from '../config/rounds';
+import { ROUNDS, zombieCount, zombieHealth, spawnDelay, speedMix, houndCount, houndPacing } from '../config/rounds';
 import { BRUTE, HOUND } from '../config/enemies';
 import type { SpeedTier } from '../config/enemies';
 import { K } from '../world/grid';
@@ -43,12 +43,13 @@ export class Rounds {
     // active
     this.spawnTimer -= dt;
     const alive = zm.aliveCount;
-    if ((this.toSpawn > 0 || this.surge > 0) && this.spawnTimer <= 0 && alive < ROUNDS.maxAlive && !this.g.player.downed) {
+    const houndCap = this.special === 'hounds' && this.toSpawn > 0 && zm.houndsAlive >= houndPacing(this.round).maxAlive;
+    if ((this.toSpawn > 0 || this.surge > 0) && this.spawnTimer <= 0 && alive < ROUNDS.maxAlive && !this.g.player.downed && !houndCap) {
       if (this.spawnOne()) {
         if (this.surge > 0) this.surge--; else this.toSpawn--;
         this.spawned++;
       }
-      const d = this.special === 'hounds' ? Math.max(0.35, 1.6 - this.round * 0.03) : spawnDelay(this.round);
+      const d = this.special === 'hounds' ? houndPacing(this.round).delay : spawnDelay(this.round);
       this.spawnTimer = d * rand(0.7, 1.3);
     }
     // brute mid-round
@@ -116,35 +117,45 @@ export class Rounds {
   private spawnOne(): boolean {
     const zm = this.g.zombies;
     if (this.special === 'hounds') return this.spawnHound();
+    const [w, r] = speedMix(this.round);
+    const roll = Math.random();
+    const tier: SpeedTier = roll < w ? 'walker' : roll < w + r ? 'runner' : 'sprinter';
+    // open-air maps: the dead also claw up out of the soil nearby (out of view), so a big map
+    // never leaves you waiting for a horde to walk in from a distant wall
+    if (this.g.world.def.outdoor && Math.random() < 0.45) {
+      const cell = this.findFloorCell(11, 22, true);
+      if (cell) return !!zm.spawn('zombie', this.hp, tier, cell);
+    }
     const c = this.candidates();
     if (!c.length) return false;
     const pickFrom = c.slice(0, Math.min(4, c.length));
     const sp = pick(pickFrom);
-    const [w, r] = speedMix(this.round);
-    const roll = Math.random();
-    const tier: SpeedTier = roll < w ? 'walker' : roll < w + r ? 'runner' : 'sprinter';
     const z = zm.spawn('zombie', this.hp, tier, sp.window ? { window: sp.window } : { x: sp.x, z: sp.z });
     return !!z;
   }
 
   /** Random walkable cell in an active zone at a distance band from the player. */
-  findFloorCell(minD: number, maxD: number): { x: number; z: number } | null {
+  findFloorCell(minD: number, maxD: number, outOfView = false): { x: number; z: number } | null {
     const w = this.g.world, g = w.grid, p = this.g.player.pos;
+    const yaw = this.g.player.yaw;
     for (let tries = 0; tries < 80; tries++) {
-      const a = Math.random() * Math.PI * 2, d = rand(minD, maxD);
+      // out of view: a cone behind / beside the player (forward is (-sin yaw, -cos yaw))
+      const a = outOfView && tries < 60 ? Math.atan2(Math.cos(yaw), Math.sin(yaw)) + rand(-2.0, 2.0) : Math.random() * Math.PI * 2;
+      const d = rand(minD, maxD);
       const x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d;
       const i = Math.floor(x), j = Math.floor(z);
       if (g.kindAt(i, j) !== K.FLOOR) continue;
       const zone = g.zoneAt(i, j);
       if (zone < 0 || !w.zoneActive[zone]) continue;
       if (w.flow.distanceAt(x, z) === FlowField.INF) continue;
+      if (g.post[j * g.w + i] > 0) continue;
       return { x: i + 0.5, z: j + 0.5 };
     }
     return null;
   }
 
   private spawnHound(): boolean {
-    const cell = this.findFloorCell(7, 16);
+    const cell = this.findFloorCell(13, 22, true) ?? this.findFloorCell(10, 24);
     if (!cell) return false;
     const hp = this.hp * HOUND.hpMult * this.g.difficulty.zombieHp / this.g.difficulty.zombieHp;
     const z = this.g.zombies.spawn('hound', hp, 'sprinter', cell);

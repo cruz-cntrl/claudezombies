@@ -178,6 +178,7 @@ function keypadPanel(ctx: BuildContext, x: number, z: number, yaw: number) {
 
 export const halcyonStation: MapDef = {
   id: 'station',
+  unlock: { map: 'ravenmoor', round: 5 },
   name: 'Halcyon Signal Station',
   subtitle: '1944 — where the signal comes from',
   desc: 'Riveted steel and humming machinery. A loading dock, the chip assembly line, a generator hall of arcing capacitors, the control room and the transmitter roof.',

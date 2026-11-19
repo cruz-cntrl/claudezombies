@@ -5,6 +5,8 @@ import { damp, clamp, smoothstep } from '../core/math';
 
 /** Viewmodel scale at the hip and aimed, and how much further out the gun sits when aimed. */
 const HIP_SCALE = 1.15, ADS_SCALE = 0.8, ADS_DIST = 1.45;
+/** Gloved hands + sleeves on the viewmodel. Off: the guns, knife, grenade and tonic float on their own. */
+const SHOW_ARMS = false;
 
 export interface VmState {
   ads: number;
@@ -56,6 +58,7 @@ export class Viewmodel {
   private swayY = 0;
   private partRest = new Map<THREE.Object3D, { p: THREE.Vector3; r: THREE.Euler; vis: boolean }>();
   scopeActive = false;
+  private sprintK = 0;
   currentId = '';
 
   constructor(private camera: THREE.PerspectiveCamera, scene: THREE.Scene, flashTex: THREE.Texture) {
@@ -79,12 +82,14 @@ export class Viewmodel {
     this.knifeArm.add(this.knife);
     const kh = buildHand(true);
     kh.position.set(0, 0, 0.02);
+    kh.visible = SHOW_ARMS;
     this.knifeArm.add(kh);
     this.knifeArm.visible = false;
     this.root.add(this.knifeArm);
     this.nadeArm.add(this.nade);
     const nh = buildHand(false);
     nh.position.set(0, -0.03, 0.03);
+    nh.visible = SHOW_ARMS;
     this.nadeArm.add(nh);
     this.nadeArm.visible = false;
     this.root.add(this.nadeArm);
@@ -114,6 +119,7 @@ export class Viewmodel {
     this.gun.root.add(this.handR, this.handL, this.flash);
     this.handR.position.set(0.0, -0.035, 0.03);
     this.handR.rotation.set(0.45, -0.1, 0.05);
+    this.handR.visible = SHOW_ARMS;
     this.partRest.clear();
     for (const p of Object.values(this.gun.parts)) {
       if (p) this.partRest.set(p, { p: p.position.clone(), r: p.rotation.clone(), vis: p.visible });
@@ -166,8 +172,10 @@ export class Viewmodel {
     const bx = Math.cos(s.bobPhase) * 0.012 * bobK;
     const by = -Math.abs(Math.sin(s.bobPhase)) * 0.012 * bobK;
     const idle = Math.sin(s.time * 1.3) * 0.0025 * (1 - ads * 0.8);
-    // sprint
-    const sp = s.sprint;
+    // sprint: blended (never a snap) and fully suppressed while aiming, so the run pose and the
+    // aimed pose can't stack and push the gun through the camera
+    this.sprintK = damp(this.sprintK, s.sprint, 9, dt);
+    const sp = this.sprintK * (1 - ads);
     // swap / downed lowering
     const low = Math.max(s.swap, s.melee >= 0 ? 0.9 : 0, s.throwT >= 0 || s.cookT >= 0 ? 0.7 : 0, s.drink >= 0 ? 1 : 0);
     this.root.position.set(
@@ -196,7 +204,7 @@ export class Viewmodel {
     const L = this.handL;
     L.position.copy(gun.foreL);
     L.rotation.set(0.3, -0.6, 0.35);
-    L.visible = true;
+    L.visible = SHOW_ARMS;
     // gun local pose (reload tilt etc.)
     gun.root.position.set(0, 0, 0);
     gun.root.rotation.set(0, 0, 0);
@@ -240,6 +248,7 @@ export class Viewmodel {
         const bh = buildHand(true);
         bh.position.set(0.02, 0.05, 0.03);
         bh.rotation.set(0, 0, Math.PI / 2);
+        bh.visible = SHOW_ARMS;
         this.bottleArm.add(bh);
       }
       this.bottleArm.visible = true;

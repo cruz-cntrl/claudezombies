@@ -33,6 +33,7 @@ import type { Boss } from './entities/bosses/boss';
 import { groundY } from './world/terrain';
 import { MAPS } from './world/maps';
 import { isUnlocked, markUnlocked } from './core/save';
+import type { Ladder } from './world/ladders';
 
 /**
  * One play session on one map. Owns the world and all gameplay systems.
@@ -109,6 +110,7 @@ export class Game {
     this.fx.onCasingBounce = (x, y, z, shell) => audio.play(shell ? 'mech_shellCasing' : 'mech_casing', { pos: { x, y, z }, vol: 0.4, priority: 1 });
     setCasingSpawner((x, y, z, vx, vy, vz, shell) => this.fx.casing(x, y, z, vx, vy, vz, shell));
 
+    this.player.ladders = (world.setpieces.get('ladders') as Ladder[] | undefined) ?? [];
     this.weapons = new WeaponSystem(r.vmCamera, r.vmScene, this.fx.flashTex, this.player);
     this.economy = new Economy(this);
     this.powerups = new Powerups(this);
@@ -119,6 +121,8 @@ export class Game {
       playerPos: this.player.pos,
       playerAlive: () => !this.over,
       playerTargetable: () => !this.over && !this.player.downed && this.invuln <= 0,
+      playerElev: () => this.player.height,
+      ladders: (world.setpieces.get('ladders') as Ladder[] | undefined) ?? [],
       damagePlayer: (a, x, z) => this.damagePlayer(a, x, z),
       tearBoard: (w) => this.barriers.tear(w),
       boardsAt: (w) => this.barriers.count(w),
@@ -169,12 +173,15 @@ export class Game {
 
     this.unsub.push(
       bus.on('roundStart', (e) => {
-        this.hud.message(e.special === 'hounds' ? 'THE STATIC STORM' : `ROUND ${e.round}`, e.special === 'hounds' ? 'Chipped hounds are loose' : undefined, 3, e.special === 'hounds' ? '#e2392e' : undefined);
+        const gate = Object.values(MAPS).find((m) => m.unlock?.map === this.world.def.id && !isUnlocked(m));
+        const goal = gate && gate.unlock && e.round === 1 ? `Reach round ${gate.unlock.round} to open ${gate.name}` : undefined;
+        this.hud.message(e.special === 'hounds' ? 'THE STATIC STORM' : `ROUND ${e.round}`, e.special === 'hounds' ? 'Chipped hounds are loose — they circle, then charge' : goal, goal ? 5 : 3, e.special === 'hounds' ? '#e2392e' : undefined);
         if (e.special === 'hounds') audio.play('ui_alarm', { bus: 'ui', vol: 0.8 });
         // reaching a gate round opens the next map (Grounds round 5 → the Asylum)
         for (const m of Object.values(MAPS)) {
           if (m.unlock?.map === this.world.def.id && e.round >= m.unlock.round && !isUnlocked(m) && markUnlocked(m.id)) {
-            setTimeout(() => this.hud.message('THE ASYLUM DOORS GIVE WAY', `${m.name} is open — choose it from the map menu`, 5, '#4ff0e8'), 3200);
+            const head = m.id === 'ravenmoor' ? 'THE ASYLUM DOORS GIVE WAY' : 'YOU’VE FOUND WHERE THE SIGNAL STARTS';
+            setTimeout(() => this.hud.message(head, `${m.name} is open — choose it from the map menu`, 5, '#4ff0e8'), 3200);
             audio.play('ui_eeStep', { bus: 'ui', delay: 3.2 });
           }
         }
@@ -317,8 +324,11 @@ export class Game {
       p.downTimer -= dt;
       if (p.downTimer <= 0) this.revive();
     }
-    this.world.flow.update(Math.floor(p.pos.x), Math.floor(p.pos.z));
-    this.camPos.set(p.pos.x, p.eye + groundY(p.pos.x, p.pos.z), p.pos.z);
+    // up a tower: the horde heads for the foot of the ladder
+    const lad = p.height > 1.2 ? (p.ladder ?? p.ladders.find((l) => Math.hypot(l.tx - p.pos.x, l.tz - p.pos.z) < 6)) : null;
+    if (lad) this.world.flow.update(Math.floor(lad.bx), Math.floor(lad.bz));
+    else this.world.flow.update(Math.floor(p.pos.x), Math.floor(p.pos.z));
+    this.camPos.set(p.pos.x, p.eye + p.height + groundY(p.pos.x, p.pos.z), p.pos.z);
     if (!this.over) ws.update(dt, this.input, this.combat, this.camPos);
     // grenade preview
     if (ws.cookT >= 0) {
@@ -352,6 +362,7 @@ export class Game {
   private pushFromZombies(pos: THREE.Vector3) {
     for (const z of this.zombies.all()) {
       if (!z.alive || z.state === 'outside' || z.state === 'window' || z.state === 'emerge') continue;
+      if (Math.abs(z.elev - this.player.height) > 1) continue;
       const dx = pos.x - z.x, dz = pos.z - z.z;
       const min = 0.3 + (z.type === 'brute' ? 0.6 : z.type === 'hound' ? 0.3 : 0.34);
       const d2 = dx * dx + dz * dz;

@@ -11,6 +11,7 @@ const ICONS: Record<string, string> = {
   melee: '<svg viewBox="0 0 24 24"><path d="M5 19l9-9M14 10l5-6 1 1-6 5M7 15l2 2M4 20l2-2"/></svg>',
   grenade: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="6" ry="7"/><path d="M10 7V4h4v3M14 5l4-2"/></svg>',
   pause: '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>',
+  jump: '<svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-6 6 6M5 21h14"/></svg>',
 };
 
 type Role = { kind: 'joy' | 'look' | 'btn' | 'pad'; act?: string; el?: HTMLElement; lx: number; ly: number; lt: number; ox?: number; oy?: number; t0?: number; travel?: number };
@@ -37,8 +38,8 @@ export class TouchControls {
 
   constructor(private input: Input) {
     this.root = document.getElementById('controls')!;
-    for (const act of ['fire', 'aim', 'reload', 'swap', 'melee', 'grenade', 'pause']) {
-      const sec = act === 'melee' || act === 'reload' || act === 'swap' || act === 'aim' || act === 'grenade' ? ' sec' : '';
+    for (const act of ['fire', 'aim', 'reload', 'swap', 'melee', 'grenade', 'jump', 'pause']) {
+      const sec = act === 'melee' || act === 'reload' || act === 'swap' || act === 'aim' || act === 'grenade' || act === 'jump' ? ' sec' : '';
       const el = h('div', { class: `ctl-btn ${act}${sec}`, 'data-act': act, html: ICONS[act] });
       if (act !== 'fire' && act !== 'pause') el.appendChild(h('span', { class: 'lbl' }, act.toUpperCase()));
       this.buttons[act] = el;
@@ -112,6 +113,8 @@ export class TouchControls {
       reload: at(110),
       swap: at(75),
       grenade: [cx - dir * (R + 74 * bs), cy + 14 * bs],
+      // jump sits on the outer ring above grenade, inside easy reach of the right thumb
+      jump: [cx - dir * (R + 70 * bs), cy - 74 * bs],
       pause: [L.sal + 12 + 23 * bs, L.sat + 12 + 23 * bs],
     };
     // keep the swap button on-screen at small heights
@@ -252,6 +255,7 @@ export class TouchControls {
       case 'grenade': i.grenadeHeld = true; break;
       case 'interact': i.interactHeld = true; i.press('interactPress'); break;
       case 'pause': i.press('pause'); break;
+      case 'jump': i.press('jump'); break;
     }
   }
 

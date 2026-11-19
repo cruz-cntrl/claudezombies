@@ -13,6 +13,8 @@ export interface Settings {
   leftHanded: boolean;
   /** Upper part of the movement side: drag to look, tap to toggle ADS */
   leftLookPad: boolean;
+  /** Touch: aimed in with the reticle on a target → the gun fires by itself */
+  autoFireAds: boolean;
   /** Story cutscenes (prologue, room unlocks, boss reveals) */
   cutscenes: boolean;
   quality: Quality;
@@ -26,7 +28,7 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
   lookSens: 1,
-  adsSens: 0.7,
+  adsSens: 1.25,
   invertY: false,
   aimAssist: true,
   aimAssistStrength: 0.6,
@@ -35,6 +37,7 @@ export const defaultSettings: Settings = {
   buttonOpacity: 0.7,
   leftHanded: false,
   leftLookPad: true,
+  autoFireAds: true,
   cutscenes: true,
   quality: 'medium',
   showFps: false,
@@ -46,6 +49,7 @@ export const defaultSettings: Settings = {
 };
 
 const KEY = 'tethered.v1';
+const SETTINGS_VERSION = 2;
 
 interface SaveData {
   settings: Settings;
@@ -54,6 +58,8 @@ interface SaveData {
   eeDone: string[];
   /** one-time story beats already shown (e.g. 'prologue:ravenmoor') */
   seen: string[];
+  /** bumped when a default changes in a way existing saves should pick up */
+  settingsVersion?: number;
 }
 
 function load(): SaveData {
@@ -61,16 +67,20 @@ function load(): SaveData {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw) as Partial<SaveData>;
+      const settings = { ...defaultSettings, ...(d.settings ?? {}) };
+      // v2: aiming got faster by default (old default was 0.7)
+      if ((d.settingsVersion ?? 1) < 2) settings.adsSens = Math.max(settings.adsSens, defaultSettings.adsSens);
       return {
-        settings: { ...defaultSettings, ...(d.settings ?? {}) },
+        settings,
         scores: d.scores ?? {},
         notes: d.notes ?? [],
         eeDone: d.eeDone ?? [],
         seen: d.seen ?? [],
+        settingsVersion: SETTINGS_VERSION,
       };
     }
   } catch { /* private mode / corrupted */ }
-  return { settings: { ...defaultSettings }, scores: {}, notes: [], eeDone: [], seen: [] };
+  return { settings: { ...defaultSettings }, scores: {}, notes: [], eeDone: [], seen: [], settingsVersion: SETTINGS_VERSION };
 }
 
 export const save: SaveData = load();

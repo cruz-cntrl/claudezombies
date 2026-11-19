@@ -105,12 +105,13 @@ export class Cutscenes {
       const c1 = V(eye.x + 3.5, 9.5, eye.z - 11);
       const look = this.playerLook();
       look.y += groundY(eye.x, eye.z);
-      shots.push({ from: g0, to: g1, lookFrom: beacon.clone().setY(lm.y - 9), lookTo: beacon, dur: 5.0, absLook: true });
-      shots.push({ from: g1.clone(), to: c1, lookFrom: beacon, lookTo: clock, dur: 4.6, absLook: true });
-      shots.push({ from: c1.clone(), to: eye.clone(), lookFrom: clock, lookTo: look, dur: 2.4, absLook: true });
-      cards.push({ at: t + 0.4, dur: 4.2, text: g.world.def.name.toUpperCase(), sub: lines ? lines.title : undefined, kind: 'title' });
-      if (lines) cards.push({ at: t + 1.0, dur: 3.8, text: lines.line, kind: 'caption' });
-      cards.push({ at: t + 5.4, dur: 4.0, text: 'Above the asylum, the blue light listens through every chip on the estate.', kind: 'caption' });
+      // the full establishing shot the first time; afterwards a quicker crane so restarts stay snappy
+      if (first) shots.push({ from: g0, to: g1, lookFrom: beacon.clone().setY(lm.y - 9), lookTo: beacon, dur: 5.0, absLook: true });
+      shots.push({ from: g1.clone(), to: c1, lookFrom: first ? beacon : beacon.clone().setY(lm.y - 6), lookTo: clock, dur: first ? 4.6 : 3.4, absLook: true });
+      shots.push({ from: c1.clone(), to: eye.clone(), lookFrom: clock, lookTo: look, dur: first ? 2.4 : 1.8, absLook: true });
+      cards.push({ at: t + 0.4, dur: first ? 4.2 : 3.4, text: g.world.def.name.toUpperCase(), sub: lines ? lines.title : undefined, kind: 'title' });
+      if (lines) cards.push({ at: t + 1.0, dur: first ? 3.8 : 3.0, text: lines.line, kind: 'caption' });
+      if (first) cards.push({ at: t + 5.4, dur: 4.0, text: 'Above the asylum, the blue light listens through every chip on the estate.', kind: 'caption' });
       sounds.push({ at: t + 0.15, name: 'stg_roundEnd', vol: 0.55 });
       this.play({ id: 'intro', shots, cards, sounds, darkUntil: first ? t : 0 });
       if (first) { save.seen.push('prologue:' + map); persist(); }
@@ -219,7 +220,7 @@ export class Cutscenes {
     return best ?? centre;
   }
 
-  private playerEye() { const p = this.g.player; return V(p.pos.x, p.eye, p.pos.z); }
+  private playerEye() { const p = this.g.player; return V(p.pos.x, p.eye + p.height, p.pos.z); }
   private playerLook() {
     const p = this.g.player;
     const f = p.forward(new THREE.Vector3());

@@ -20,7 +20,12 @@ export function zombieCount(round: number): number {
 }
 
 export function houndCount(round: number): number {
-  return Math.min(24, 6 + Math.floor(round * 0.8));
+  return Math.min(20, 4 + Math.floor(round * 0.6));
+}
+
+/** Seconds between hound spawns and how many may be loose at once. */
+export function houndPacing(round: number) {
+  return { delay: Math.max(0.9, 2.6 - round * 0.04), maxAlive: Math.min(8, 3 + Math.floor(round / 5)) };
 }
 
 export function zombieHealth(round: number): number {

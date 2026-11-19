@@ -12,14 +12,14 @@ await page.evaluate(() => {
   document.querySelector('.hud-fps').style.display = 'none';
   g.rounds.paused = true;
   const p = g.player; p.pos.set(11.5, 0, 12.5); p.prevPos.copy(p.pos); p.yaw = 0; p.pitch = -0.05;
-  window.pose = (id, ads) => {
+  window.pose = (id, ads, sprint = 0) => {
     const ws = g.weapons;
     ws.give(id);
     ws.vm.setWeapon(id, false);
     ws.ads = ads; p.ads = ads;
     ws.state = 'idle';
     for (let k = 0; k < 40; k++) {
-      ws.vm.update(1 / 60, { ads, bobPhase: 0, bobAmount: 0, sprint: 0, lookDX: 0, lookDY: 0, reload: null,
+      ws.vm.update(1 / 60, { ads, bobPhase: 0, bobAmount: 0, sprint, lookDX: 0, lookDY: 0, reload: null,
         swap: 0, melee: -1, action: -1, throwT: -1, cookT: -1, drink: -1, drinkColor: 0, downed: false, time: 1 });
     }
     g.render(1, 0);
@@ -27,8 +27,8 @@ await page.evaluate(() => {
     app.r.render(1);
   };
 });
-for (const id of ids) for (const ads of [0, 1]) {
-  await page.evaluate(([id, ads]) => window.pose(id, ads), [id, ads]);
-  await page.screenshot({ path: `shots/ads_${id}_${ads ? 'ads' : 'hip'}.png` });
+for (const id of ids) for (const [ads, sprint, tag] of [[0, 0, 'hip'], [1, 0, 'ads'], [0, 1, 'run'], [0.5, 1, 'mix']]) {
+  await page.evaluate(([id, ads, sprint]) => window.pose(id, ads, sprint), [id, ads, sprint]);
+  await page.screenshot({ path: `shots/ads_${id}_${tag}.png` });
 }
 await browser.close();

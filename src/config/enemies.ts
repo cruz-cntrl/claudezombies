@@ -21,14 +21,24 @@ export const ZOMBIE = {
   separation: 0.75,
 };
 
+/**
+ * Hounds hunt as a pack: they run in at `speed` (a little slower than your sprint), circle you
+ * at `stalkRadius` for a moment, then — at most `maxCharging` at a time — snarl and charge at
+ * `chargeSpeed`. After a bite they peel away and circle again.
+ */
 export const HOUND = {
   hpMult: 0.35,
-  speed: 6.2,
-  damage: 30,
+  speed: 4.6,
+  chargeSpeed: 6.4,
+  stalkRadius: 5.5,
+  stalkTime: [1.2, 2.6] as [number, number],
+  maxCharging: 2,
+  damage: 20,
   radius: 0.3,
   attackRange: 1.1,
-  attackWindup: 0.3,
-  attackCooldown: 0.8,
+  attackWindup: 0.45,
+  attackCooldown: 1.4,
+  retreatTime: 0.8,
 };
 
 export const BRUTE = {

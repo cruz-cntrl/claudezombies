@@ -7,7 +7,7 @@ import { LightBaker, type BakeLight } from '../render/lightingBake';
 import { generateSurfaces, surfaceScale } from '../render/proceduralTextures';
 import { FlowField } from './flowField';
 import { mulberry32, type RNG } from '../core/math';
-import { themeProp, DOUBLE_PROPS, LOW_PROPS, lightCage, bookshelf, lampPost } from './props';
+import { themeProp, DOUBLE_PROPS, LOW_PROPS, PROP_RADIUS, lightCage, bookshelf, lampPost } from './props';
 import { createSky } from './sky';
 import { LIGHTING } from '../config/lighting';
 import { HeightField, setTerrain, getTerrain, groundY } from './terrain';
@@ -144,6 +144,7 @@ export class World {
     onProgress(0.52, 'Furnishing');
     this.buildProps(batch);
     def.decorate?.(ctx);
+    this.placePosts();
     await tick();
 
     // ---- bake
@@ -209,7 +210,7 @@ export class World {
     const seed = (i: number, j: number) => { if (g.inBounds(i, j) && dist[j * W + i] > 0) { dist[j * W + i] = 0; q.push(j * W + i); } };
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
       const k = g.kindAt(i, j);
-      if (k === K.WINDOW || k === K.DOOR || k === K.MACHINE || g.hidden[j * W + i]) seed(i, j);
+      if (k === K.WINDOW || k === K.DOOR || k === K.MACHINE || g.hidden[j * W + i] || g.fence[j * W + i] === 2) seed(i, j);
     }
     for (const m of g.markers) if (m.ch !== 'x' && m.ch !== 'o') seed(m.i, m.j);
     seed(g.start.i, g.start.j);
@@ -489,7 +490,9 @@ export class World {
       const r = this.rng;
       if (m.ch === 'o') {
         const list = LOW_PROPS[theme] ?? LOW_PROPS.courtyard!;
-        list[Math.floor(r() * list.length)](batch, M(m.i + 0.5, 0, m.j + 0.5, m.facing), r);
+        const f = list[Math.floor(r() * list.length)];
+        f(batch, M(m.i + 0.5, 0, m.j + 0.5, m.facing), r);
+        g.shape[id] = PROP_RADIUS.get(f) ?? 0;
         continue;
       }
       // try a double prop with a right / down neighbour
@@ -508,7 +511,22 @@ export class World {
           continue;
         }
       }
-      themeProp(theme, r)(batch, M(m.i + 0.5, 0, m.j + 0.5, m.facing), r);
+      const f = themeProp(theme, r);
+      f(batch, M(m.i + 0.5, 0, m.j + 0.5, m.facing), r);
+      g.shape[id] = PROP_RADIUS.get(f) ?? 0;
+    }
+  }
+
+  /** Thin solid things standing in walkable cells: lamp posts, note stands, bell posts. */
+  private placePosts() {
+    const g = this.grid;
+    const openAround = (i: number, j: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => g.kindAt(i + a, j + b) === K.FLOOR).length;
+    for (const m of g.markers) {
+      const idx = m.j * g.w + m.i;
+      if (m.ch === 'l') { const zd = this.zoneDef(m.i, m.j); if (zd && !zd.ceiling) g.post[idx] = 0.16; }
+      if (m.ch === 'e' && m.id && m.id !== 'bossSpawn' && openAround(m.i, m.j) >= 3) {
+        g.post[idx] = m.id.startsWith('bell') ? 0.1 : m.id === 'beaconBase' ? 0.36 : 0.22;
+      }
     }
   }
 

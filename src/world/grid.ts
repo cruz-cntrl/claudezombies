@@ -31,8 +31,12 @@ export class Grid {
   readonly doorId: Uint8Array;
   /** '%' cells: solid, but the generic builder draws nothing (map decorate builds them) */
   readonly hidden: Uint8Array;
-  /** 'f' cells: fence / hedge lines */
+  /** 1 = 'f' fence / hedge line (drawn by decorate), 2 = 't' solid structure footing (towers) — never vaultable */
   readonly fence: Uint8Array;
+  /** Round collider for a solid prop cell (tree trunk, statue…): radius in metres, 0 = whole cell */
+  readonly shape: Float32Array;
+  /** Thin solid post standing in an otherwise walkable cell (lamp post, note stand): radius, 0 = none */
+  readonly post: Float32Array;
 
   constructor(readonly def: MapDef) {
     const rows = def.layout;
@@ -44,6 +48,8 @@ export class Grid {
     this.doorId = new Uint8Array(n);
     this.hidden = new Uint8Array(n);
     this.fence = new Uint8Array(n);
+    this.shape = new Float32Array(n);
+    this.post = new Float32Array(n);
     const letters = def.zones.map((z) => z.letter);
     const counters: Record<string, number> = {};
 
@@ -64,6 +70,7 @@ export class Grid {
           case 'x': this.kind[idx] = K.PROP; this.pushMarker(ch, i, j, counters); break;
           case 'o': this.kind[idx] = K.LOW; this.pushMarker(ch, i, j, counters); break;
           case 'f': this.kind[idx] = K.LOW; this.fence[idx] = 1; break;
+          case 't': this.kind[idx] = K.LOW; this.fence[idx] = 2; break;
           case '%': this.kind[idx] = K.WALL; this.hidden[idx] = 1; break;
           case 'p': case 'c': case 'r': case 'q':
             this.kind[idx] = K.MACHINE; this.pushMarker(ch, i, j, counters); break;
@@ -175,6 +182,15 @@ export class Grid {
   walkable(i: number, j: number): boolean {
     return this.kindAt(i, j) === K.FLOOR;
   }
+  /** Low cover a player or Tethered can vault (sandbags, gravestones, wings) — not fences */
+  vaultable(i: number, j: number): boolean {
+    return this.kindAt(i, j) === K.LOW && !this.fence[j * this.w + i];
+  }
+  /** Zombie pathing: floor, plus low cover they clamber over */
+  zombiePass(i: number, j: number): boolean {
+    const k = this.kindAt(i, j);
+    return k === K.FLOOR || (k === K.LOW && !this.fence[j * this.w + i]);
+  }
   /** Outside ground walkable by zombies before entering */
   walkableOutside(i: number, j: number): boolean {
     return this.kindAt(i, j) === K.OUTSIDE;
@@ -198,7 +214,22 @@ export class Grid {
     let hit = false;
     const i0 = Math.floor(pos.x - r), i1 = Math.floor(pos.x + r);
     const j0 = Math.floor(pos.z - r), j1 = Math.floor(pos.z + r);
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    for (let j = j0 - 1; j <= j1 + 1; j++) for (let i = i0 - 1; i <= i1 + 1; i++) {
+      if (!this.inBounds(i, j)) continue;
+      const idx = j * this.w + i;
+      // round colliders: trunks / statues in solid cells, posts in walkable cells
+      const round = solid(i, j) ? this.shape[idx] : this.post[idx];
+      if (round > 0) {
+        const dx = pos.x - (i + 0.5), dz = pos.z - (j + 0.5);
+        const min = r + round, d2 = dx * dx + dz * dz;
+        if (d2 < min * min) {
+          hit = true;
+          const d = Math.sqrt(d2) || 1e-4;
+          pos.x = i + 0.5 + (dx / d) * min; pos.z = j + 0.5 + (dz / d) * min;
+        }
+        continue;
+      }
+      if (i < i0 || i > i1 || j < j0 || j > j1) continue;
       if (!solid(i, j)) continue;
       const cx = Math.max(i, Math.min(pos.x, i + 1));
       const cz = Math.max(j, Math.min(pos.z, j + 1));
@@ -247,6 +278,22 @@ export class Grid {
       else { t = tMaxZ; tMaxZ += tDeltaZ; j += stepJ; side = 1; }
       if (t > maxDist) return maxDist;
       if (blocker(i, j)) {
+        const rad = this.shape[j * this.w + i];
+        if (rad > 0) {
+          // a trunk / statue only fills part of its cell: test the ray against its circle
+          const cx = i + 0.5 - ox, cz = j + 0.5 - oz;
+          const b = cx * dx + cz * dz, c = cx * cx + cz * cz - rad * rad;
+          const disc = b * b - c;
+          if (disc < 0) continue;
+          const th = b - Math.sqrt(disc);
+          if (th < 0 || th > maxDist) continue;
+          if (out) {
+            out.i = i; out.j = j;
+            const hx = ox + dx * th - (i + 0.5), hz = oz + dz * th - (j + 0.5), hl = Math.hypot(hx, hz) || 1;
+            out.nx = hx / hl; out.nz = hz / hl;
+          }
+          return th;
+        }
         if (out) {
           out.i = i; out.j = j;
           if (side === 0) { out.nx = -stepI; out.nz = 0; } else { out.nx = 0; out.nz = -stepJ; }

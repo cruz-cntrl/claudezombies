@@ -27,6 +27,8 @@ export class Tutorial {
       done: () => this.flags.shot },
     { touch: '<b>Reload:</b> tap RELOAD.', keys: '<b>Reload:</b> press R.',
       done: () => this.flags.reload },
+    { touch: '<b>Jump:</b> tap JUMP. Next to sandbags or a gravestone it <b>vaults</b> you over.', keys: '<b>Jump:</b> Space. Next to sandbags or a gravestone it <b>vaults</b> you over.',
+      done: (g, t) => g.player.jumpY > 0.2 || g.player.mode === 'vault' || t > 9 },
     { touch: 'Walk up to a <b>chalk outline</b> on a wall and <b>hold</b> the prompt to buy that gun.', keys: 'Walk up to a <b>chalk outline</b> and <b>hold E</b> to buy that gun.',
       done: (_g, t) => this.flags.buy || t > 22 },
     { touch: 'They tear boards off the windows. <b>Hold</b> the prompt at a window to rebuild (+10 each).', keys: 'They tear boards off the windows. <b>Hold E</b> at a window to rebuild (+10 each).',

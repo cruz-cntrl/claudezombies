@@ -7,9 +7,10 @@ import { K } from '../world/grid';
 import { clamp, damp, wrapAngle, rand, pick } from '../core/math';
 import { audio, type Voice } from '../audio/audioEngine';
 import { groundY } from '../world/terrain';
+import { type Ladder, inRect, clampToRect } from '../world/ladders';
 
 export type ZType = 'zombie' | 'hound' | 'brute';
-export type ZState = 'inactive' | 'emerge' | 'outside' | 'window' | 'climb' | 'chase' | 'attack' | 'stagger' | 'knockdown' | 'dying';
+export type ZState = 'inactive' | 'emerge' | 'outside' | 'window' | 'climb' | 'chase' | 'attack' | 'stagger' | 'knockdown' | 'dying' | 'ladder';
 export type Part = 'chip' | 'head' | 'body' | 'limb' | 'cage';
 
 /** sub: which limb was hit (1 arm L, 2 arm R, 3 leg L, 4 leg R; 0 body / head) */
@@ -70,6 +71,14 @@ export class Zombie {
   screamed = false;
   armL = 0; armR = 0; // reach poses
   lunge = 0;
+  /** height above the ground: climbing a ladder or standing on a platform */
+  elev = 0;
+  onPlatform: Ladder | null = null;
+  /** hound pack state: stalk (circle) → charge → retreat */
+  hunt: 'stalk' | 'charge' | 'retreat' = 'stalk';
+  huntT = 0;
+  orbit = 1;
+  vaultY = 0;
   slamT = -1;
   enraged = false;
   climbFrom = new THREE.Vector3();
@@ -103,6 +112,9 @@ export interface ZombieHost {
   playerPos: THREE.Vector3;
   playerAlive: () => boolean;
   playerTargetable: () => boolean;
+  /** player's height above the ground (platform / ladder / jump) */
+  playerElev: () => number;
+  ladders: Ladder[];
   damagePlayer: (amount: number, fromX: number, fromZ: number) => void;
   tearBoard: (w: WindowVisual, z: Zombie) => boolean;
   boardsAt: (w: WindowVisual) => number;
@@ -151,6 +163,12 @@ export class ZombieManager {
       scene.add(l);
       this.chipLights.push(l);
     }
+  }
+
+  get houndsAlive() {
+    let n = 0;
+    for (const z of this.hounds) if (z.active && z.state !== 'dying') n++;
+    return n;
   }
 
   get aliveCount() {
@@ -211,7 +229,7 @@ export class ZombieManager {
     z.cageHp = type === 'brute' ? Math.max(BRUTE.minCageHp, hp / BRUTE.hpMult * BRUTE.cageHpMult) : 0;
     z.chipDead = false; z.chipPop = null; z.chipStutter = 0;
     z.deathT = 0; z.stagger = 0; z.hitFlash = 0; z.cooldown = 0; z.attackT = 0; z.slamT = -1; z.enraged = false;
-    z.stuckT = 0; z.stuckX = z.x; z.stuckZ = z.z; z.bestDist = 1e9; z.vocalT = rand(0.5, 3); z.screamed = false; z.lunge = 0; z.boss = false;
+    z.stuckT = 0; z.stuckX = z.x; z.stuckZ = z.z; z.elev = 0; z.onPlatform = null; z.hunt = 'stalk'; z.huntT = rand(HOUND.stalkTime[0], HOUND.stalkTime[1]); z.orbit = Math.random() < 0.5 ? -1 : 1; z.vaultY = 0; z.bestDist = 1e9; z.vocalT = rand(0.5, 3); z.screamed = false; z.lunge = 0; z.boss = false;
     z.vx = z.vz = 0; z.y = 0;
     const speeds = ZOMBIE.speeds;
     z.speed = (type === 'hound' ? HOUND.speed : type === 'brute' ? BRUTE.speed : speeds[tier] * rand(0.92, 1.08)) * this.host.difficultySpeed;
@@ -241,8 +259,14 @@ export class ZombieManager {
     // separation (O(n^2) on <= 48 agents)
     const act: Zombie[] = [];
     for (const z of this.all()) if (z.state === 'chase' || z.state === 'attack' || z.state === 'outside' || z.state === 'stagger') act.push(z);
+    const pElev = this.host.playerElev();
+    const ladders = this.host.ladders;
+    for (const l of ladders) { const o = l.occupant as Zombie | null; if (o && (!o.active || o.state !== 'ladder')) l.occupant = null; }
+    let charging = 0;
+    for (const h of this.hounds) if (h.active && h.state !== 'dying' && (h.hunt === 'charge' || h.state === 'attack')) charging++;
     for (let a = 0; a < act.length; a++) for (let b = a + 1; b < act.length; b++) {
       const A = act[a], B = act[b];
+      if (Math.abs(A.elev - B.elev) > 1) continue;
       const dx = B.x - A.x, dz = B.z - A.z;
       const min = (radius(A) + radius(B)) * 0.95;
       const d2 = dx * dx + dz * dz;
@@ -267,6 +291,8 @@ export class ZombieManager {
       z.cooldown -= dt;
       z.stagger = Math.max(0, z.stagger - dt * 2.5);
       if (this.freezeAll && z.state !== 'dying') continue;
+      // knocked off a ladder: drop to the ground
+      if (z.state !== 'ladder' && !z.onPlatform && z.elev > 0 && z.state !== 'dying') z.elev = Math.max(0, z.elev - dt * 7);
       const dxp = p.x - z.x, dzp = p.z - z.z;
       const distP = Math.hypot(dxp, dzp);
       const r = radius(z);
@@ -354,25 +380,79 @@ export class ZombieManager {
             break;
           }
           let sp = z.speed * (z.enraged ? BRUTE.enragedSpeed / BRUTE.speed : 1);
-          // direct line when close and visible, else flow field
           let mx = 0, mz = 0;
-          const los = distP < 7 && g.los(z.x, z.z, p.x, p.z);
-          if (los) { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
-          else if (flow.direction(z.x, z.z, _dir)) { mx = _dir.x; mz = _dir.z; }
-          else { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
-          if (z.type === 'hound' && distP < 3 && distP > 1.2) sp *= 1.3;
+          const plat = z.onPlatform;
+          const playerUp = pElev > 1.2;
+          if (plat) {
+            // up on a platform: straight at the player (or back to the ladder if they climbed down)
+            if (playerUp) { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
+            else if (!plat.occupant && Math.hypot(plat.tx - z.x, plat.tz - z.z) < 0.5) {
+              plat.occupant = z; z.onPlatform = null; z.setState('ladder'); z.lunge = -1; z.x = plat.bx; z.z = plat.bz; break;
+            } else { const dx = plat.tx - z.x, dz = plat.tz - z.z, d = Math.hypot(dx, dz) || 1; mx = dx / d; mz = dz / d; }
+          } else if (playerUp && ladders.length && z.type === 'zombie') {
+            // the player is up a tower: queue at the foot of the nearest ladder and climb
+            let L = ladders[0], ld = 1e9;
+            for (const l of ladders) { const d = Math.hypot(l.bx - z.x, l.bz - z.z); if (d < ld) { ld = d; L = l; } }
+            if (ld < 0.7 && !L.occupant) { L.occupant = z; z.x = L.bx; z.z = L.bz; z.setState('ladder'); z.lunge = 1; break; }
+            if (ld < 4 && g.los(z.x, z.z, L.bx, L.bz)) {
+              const dx = L.bx - z.x, dz = L.bz - z.z, d = Math.hypot(dx, dz) || 1;
+              mx = dx / d; mz = dz / d;
+              if (L.occupant && ld < 1.6) { mx = 0; mz = 0; } // wait your turn
+            } else if (flow.direction(z.x, z.z, _dir)) { mx = _dir.x; mz = _dir.z; }
+          } else if (z.type === 'hound') {
+            // pack hunting: run in, circle, take turns charging, peel away after a bite
+            const los = distP < 12 && g.los(z.x, z.z, p.x, p.z) && !playerUp;
+            z.huntT -= dt;
+            if (z.hunt === 'charge' && (!los || distP > 11)) z.hunt = 'stalk';
+            if (z.hunt === 'retreat' && z.huntT <= 0) { z.hunt = 'stalk'; z.huntT = rand(HOUND.stalkTime[0], HOUND.stalkTime[1]); }
+            if (z.hunt === 'stalk' && los && distP < HOUND.stalkRadius + 2.5 && z.huntT <= 0 && charging < HOUND.maxCharging) {
+              z.hunt = 'charge'; charging++;
+              audio.play('z_houndSnarl', { pos: { x: z.x, y: 0.6, z: z.z }, bus: 'voice', vol: 1, priority: 7 });
+            }
+            if (los && z.hunt !== 'charge' && distP < HOUND.stalkRadius + 3) {
+              // circle: tangent plus a spring toward the stalking radius
+              const ux = dxp / (distP || 1), uz = dzp / (distP || 1);
+              const radial = z.hunt === 'retreat' ? -1 : clamp((distP - HOUND.stalkRadius) * 0.6, -1, 1);
+              mx = -uz * z.orbit * 0.9 + ux * radial; mz = ux * z.orbit * 0.9 + uz * radial;
+              const l = Math.hypot(mx, mz) || 1; mx /= l; mz /= l;
+              sp = HOUND.speed * 0.8;
+            } else if (los && distP < 7) { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
+            else if (flow.direction(z.x, z.z, _dir)) { mx = _dir.x; mz = _dir.z; }
+            else { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
+            if (z.hunt === 'charge') sp = HOUND.chargeSpeed;
+          } else {
+            // direct line when close and visible, else flow field
+            const los = distP < 7 && g.los(z.x, z.z, p.x, p.z);
+            if (los) { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
+            else if (flow.direction(z.x, z.z, _dir)) { mx = _dir.x; mz = _dir.z; }
+            else { mx = dxp / (distP || 1); mz = dzp / (distP || 1); }
+            // spread out round the player instead of filing in a line: each one leans to its own side
+            if (distP < 9 && distP > 1.8 && z.type === 'zombie') {
+              const side = (z.idx % 2 ? 1 : -1) * (0.25 + (z.idx % 5) * 0.08);
+              const k = clamp((distP - 1.8) / 5, 0, 1) * side;
+              mx += -dzp / (distP || 1) * k; mz += dxp / (distP || 1) * k;
+              const l = Math.hypot(mx, mz) || 1; mx /= l; mz /= l;
+            }
+          }
+          // clambering over low cover: slower, with a hop
+          const ci = Math.floor(z.x), cj = Math.floor(z.z);
+          const onCover = !plat && g.kindAt(ci, cj) === K.LOW;
+          z.vaultY = damp(z.vaultY, onCover ? 0.55 : 0, 10, dt);
+          if (onCover) sp *= 0.55;
           // smooth steering
           z.vx = damp(z.vx, mx * sp, z.type === 'hound' ? 8 : 5, dt);
           z.vz = damp(z.vz, mz * sp, z.type === 'hound' ? 8 : 5, dt);
           const slowK = 1 - z.stagger * 0.8;
           z.x += z.vx * dt * slowK; z.z += z.vz * dt * slowK;
-          g.collideCircle(z, r * 0.9, (i, j) => !g.walkable(i, j));
+          if (plat) clampToRect(plat, z, r);
+          else g.collideCircle(z, r * 0.9, (i, j) => !g.zombiePass(i, j));
           const sv = Math.hypot(z.vx, z.vz);
           if (sv > 0.1) z.yaw = turn(z.yaw, Math.atan2(z.vx, z.vz), z.type === 'hound' ? 10 : 6, dt);
           z.phase += dt * gaitRate(z, sv);
-          // attack
+          // attack (only at the player's level)
+          const sameLevel = Math.abs(pElev - z.elev) < 1.1;
           const range = z.type === 'hound' ? HOUND.attackRange : z.type === 'brute' ? BRUTE.slamRadius * 0.55 : ZOMBIE.attackRange * z.scale;
-          if (distP < range && z.cooldown <= 0) this.beginAttack(z);
+          if (sameLevel && distP < range && z.cooldown <= 0) this.beginAttack(z);
           // vocal: chase scream
           if (!z.screamed && distP < 11 && z.type === 'zombie' && z.tier !== 'walker') {
             z.screamed = true;
@@ -382,8 +462,24 @@ export class ZombieManager {
           const fd = flow.distanceAt(z.x, z.z);
           // progress = closing the path distance OR actually covering ground (a walker following a
           // kiting player on an open map never closes the distance, but it isn't stuck)
-          if (fd < z.bestDist - 5 || Math.hypot(z.x - z.stuckX, z.z - z.stuckZ) > 2) { z.bestDist = Math.min(z.bestDist, fd); z.stuckT = 0; z.stuckX = z.x; z.stuckZ = z.z; } else z.stuckT += dt;
+          if (plat || playerUp || fd < z.bestDist - 5 || Math.hypot(z.x - z.stuckX, z.z - z.stuckZ) > 2) { z.bestDist = Math.min(z.bestDist, fd); z.stuckT = 0; z.stuckX = z.x; z.stuckZ = z.z; } else z.stuckT += dt;
           if (z.stuckT > ZOMBIE.stuckRespawnSeconds && distP > 4) this.respawnElsewhere(z);
+          break;
+        }
+        case 'ladder': {
+          // climbing up (lunge = 1) or down (lunge = -1) a tower ladder, one at a time
+          const L = ladders.find((l) => l.occupant === z);
+          if (!L) { z.elev = 0; z.setState('chase'); break; }
+          const rate = z.tier === 'walker' ? 1.6 : 2.4;
+          z.elev += z.lunge * rate * dt;
+          z.x = L.bx + L.nx * 0.1; z.z = L.bz + L.nz * 0.1;
+          z.yaw = Math.atan2(L.nx, L.nz);
+          z.phase += dt * 6;
+          if (z.lunge > 0 && z.elev >= L.top) {
+            z.elev = L.top; L.occupant = null; z.onPlatform = L; z.x = L.tx; z.z = L.tz; z.setState('chase');
+          } else if (z.lunge < 0 && z.elev <= 0) {
+            z.elev = 0; L.occupant = null; z.x = L.bx - L.nx * 0.4; z.z = L.bz - L.nz * 0.4; z.setState('chase');
+          }
           break;
         }
         case 'attack': {
@@ -391,7 +487,7 @@ export class ZombieManager {
           z.yaw = turn(z.yaw, Math.atan2(dxp, dzp), z.type === 'brute' ? 2 : 8, dt);
           if (z.type === 'hound' && z.stateT < windup + 0.15 && z.stateT > windup * 0.5) {
             z.x += Math.sin(z.yaw) * 5 * dt; z.z += Math.cos(z.yaw) * 5 * dt;
-            g.collideCircle(z, r, (i, j) => !g.walkable(i, j));
+            if (z.onPlatform) clampToRect(z.onPlatform, z, r); else g.collideCircle(z, r, (i, j) => !g.zombiePass(i, j));
           }
           if (!z.attackHit && z.stateT >= windup) {
             z.attackHit = true;
@@ -404,7 +500,7 @@ export class ZombieManager {
             } else {
               const reach = (z.type === 'hound' ? HOUND.attackRange : ZOMBIE.attackRange) + 0.45;
               const inWindow = z.state === 'attack' && z.window && this.windowOccupant.get(z.window) === z;
-              if (distP < reach && targetable && (inWindow || g.los(z.x, z.z, p.x, p.z))) {
+              if (distP < reach && targetable && Math.abs(pElev - z.elev) < 1.1 && (inWindow || g.los(z.x, z.z, p.x, p.z))) {
                 this.host.damagePlayer(z.type === 'hound' ? HOUND.damage : ZOMBIE.attackDamage, z.x, z.z);
               }
             }
@@ -412,6 +508,7 @@ export class ZombieManager {
           const total = windup + (z.type === 'brute' ? 0.9 : 0.35);
           if (z.stateT > total) {
             z.cooldown = z.type === 'hound' ? HOUND.attackCooldown : z.type === 'brute' ? 1.2 : 0.55;
+            if (z.type === 'hound') { z.hunt = 'retreat'; z.huntT = HOUND.retreatTime; z.orbit = -z.orbit; }
             const backToWindow = z.window && this.windowOccupant.get(z.window) === z && this.host.boardsAt(z.window) > 0;
             z.setState(backToWindow ? 'window' : z.window && this.windowOccupant.get(z.window) === z ? 'window' : 'chase');
           }
@@ -444,6 +541,7 @@ export class ZombieManager {
             const k = Math.max(0, 1 - (z.deathT - 0.18) * 2.5);
             z.x += z.deathDirX * k * dt * 1.5; z.z += z.deathDirZ * k * dt * 1.5;
           }
+          if (!z.onPlatform && z.elev > 0) z.elev = Math.max(0, z.elev - dt * (2 + z.deathT * 9));
           if (z.deathT > 6.5) z.active = false;
           break;
         }
@@ -796,7 +894,7 @@ export class ZombieManager {
     const twist = sp[3] + (z.state === 'dying' ? clamp(z.deathT * 2, 0, 1) * z.deathTwist : 0);
     // hierarchy
     const root = _m[0], pelvis = _m[1], torso = _m[2], head = _m[3], tmp = _m[4], ua = _m[5], la = _m[6], ul = _m[7];
-    P.local(root, IDENT, z.x, z.y + groundY(z.x, z.z), z.z, rootPitch, z.yaw + (z.state === 'dying' ? twist * 0.6 : 0), z.state === 'dying' ? twist * 0.5 * fallK(z) : 0, s);
+    P.local(root, IDENT, z.x, z.y + z.elev + z.vaultY + groundY(z.x, z.z), z.z, rootPitch, z.yaw + (z.state === 'dying' ? twist * 0.6 : 0), z.state === 'dying' ? twist * 0.5 * fallK(z) : 0, s);
     P.local(pelvis, root, 0, hipY, 0, 0, 0, bodyRoll * 0.5, z.bulk, 1, 1);
     const torsoScale = (z.type === 'brute' ? 1.25 : 1) * z.bulk;
     // pelvis colour = trousers/clothing
@@ -891,7 +989,7 @@ export class ZombieManager {
     if (z.state === 'dying') { const f = clamp(z.deathT * 3, 0, 1); roll = f * 1.5; bodyY = 0.55 - f * 0.38 - clamp((z.deathT - 5.2) / 1.2, 0, 1) * 0.3; }
     if (z.state === 'emerge') { bodyY = 0.55 * clamp(z.stateT / 0.6, 0, 1); }
     const root = _m[0], body = _m[1], head = _m[2], up = _m[3], low = _m[4], tmp = _m[5];
-    P.local(root, IDENT, z.x, groundY(z.x, z.z), z.z, 0, z.yaw, 0);
+    P.local(root, IDENT, z.x, groundY(z.x, z.z) + z.elev + z.vaultY, z.z, 0, z.yaw, 0);
     P.local(body, root, 0, bodyY, 0, pitch + Math.sin(ph * 2) * 0.05 * gal, 0, roll);
     _col.copy(z.skin);
     this.setInst(D, 'hBody', i, body, _col);

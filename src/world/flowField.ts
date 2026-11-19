@@ -28,11 +28,11 @@ export class FlowField {
     this.targetI = ti; this.targetJ = tj;
     const g = this.grid, w = g.w;
     this.dist.fill(FlowField.INF);
-    if (!g.walkable(ti, tj)) {
+    if (!g.zombiePass(ti, tj)) {
       // player standing on an odd cell: seed from walkable neighbours
       let seeded = false;
       for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-        if (g.walkable(ti + di, tj + dj)) { this.push((tj + dj) * w + ti + di, 5); this.dist[(tj + dj) * w + ti + di] = 5; seeded = true; }
+        if (g.zombiePass(ti + di, tj + dj)) { this.push((tj + dj) * w + ti + di, 5); this.dist[(tj + dj) * w + ti + di] = 5; seeded = true; }
       }
       if (!seeded) return;
     } else {
@@ -48,12 +48,14 @@ export class FlowField {
       for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
         if (di === 0 && dj === 0) continue;
         const ni = ci + di, nj = cj + dj;
-        if (!g.walkable(ni, nj)) continue;
+        if (!g.zombiePass(ni, nj)) continue;
         let cost = 10;
         if (di !== 0 && dj !== 0) {
           if (!g.walkable(ci + di, cj) || !g.walkable(ci, cj + dj)) continue;
           cost = 14;
         }
+        // clambering over low cover is slower than walking round it, unless the detour is long
+        if (g.kindAt(ni, nj) !== 1) cost += 22;
         const nIdx = nj * w + ni;
         const nd = key + cost;
         if (nd < this.dist[nIdx]) { this.dist[nIdx] = nd; this.push(nIdx, nd); }
@@ -76,6 +78,7 @@ export class FlowField {
       const ni = i + di, nj = j + dj;
       if (!g.inBounds(ni, nj)) continue;
       if (di !== 0 && dj !== 0 && (!g.walkable(i + di, j) || !g.walkable(i, j + dj))) continue;
+      if (!g.zombiePass(ni, nj)) continue;
       const d = this.dist[nj * w + ni];
       if (d < best) { best = d; bi = ni; bj = nj; }
     }

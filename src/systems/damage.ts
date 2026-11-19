@@ -115,6 +115,18 @@ export class Combat implements CombatHost {
   }
 
   // ---------------------------------------------------------------- bullets
+  /** Is a live Tethered (or the boss) on the exact bullet path within `range`? (auto-fire while aiming) */
+  private _aimHits: ZHit[] = [];
+  targetUnderReticle(o: THREE.Vector3, d: THREE.Vector3, range: number): number {
+    const env = this.envRay(o, d);
+    const maxT = Math.min(env.t, range);
+    const bh = this.g.boss?.raycast(o.x, o.y, o.z, d.x, d.y, d.z, maxT) ?? null;
+    if (bh) return bh.t;
+    this._aimHits.length = 0;
+    const hits = this.zombies.raycast(o.x, o.y, o.z, d.x, d.y, d.z, maxT, this._aimHits);
+    return hits.length ? hits[0].t : -1;
+  }
+
   hitscan(o: THREE.Vector3, d: THREE.Vector3, w: WeaponInstance, scale: number) {
     const st = w.stats;
     const env = this.envRay(o, d);

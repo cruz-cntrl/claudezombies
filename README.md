@@ -36,6 +36,9 @@ node scripts/mapviews.mjs grounds   # tour of the Grounds (incl. aerial) with dr
 node scripts/eegrounds.mjs  # Grounds easter egg end to end (flare → bells → vigil → Lights Out)
 node scripts/cutscenecheck.mjs grounds   # frames from the Grounds prologue + establishing shot
 node scripts/taptest.mjs    # real touch taps through title → menu → map select (ghost-click regression)
+node scripts/movetest.mjs   # jump, vault, ladder up/down, tower platform, zombies climbing after you
+node scripts/houndtest.mjs  # how long a pack of hounds takes to down a player who doesn't fight back
+node scripts/uishots.mjs    # Grounds HUD + touch controls, and the pause screen with its map
 ```
 
 Note: `?autostart=1` without `map=` still starts Ravenmoor Asylum (the existing tests are written for it); the
@@ -75,7 +78,11 @@ markers for wall-buys, perks, crates, the Rewirer, power, easter-egg anchors).
 The Grounds (`maps/grounds.ts`) adds a few knobs at the top of the file: `KS` (layout stretch — raise it for a
 bigger estate), the `terrain()` function (hill heights), `skyLight` / `fogDensity` (how bright the dusk is),
 `unlock` on `maps/ravenmoor.ts` (which round on the Grounds opens the Asylum), and `ADS_SCALE` / `ADS_DIST` in
-`weapons/viewmodel.ts` (how small the gun gets when aiming).
+`weapons/viewmodel.ts` (how small the gun gets when aiming; `SHOW_ARMS` puts the hands back).
+
+Hound behaviour is in `config/enemies.ts` → `HOUND` (run / charge speed, circling radius and time, how many may
+charge at once, bite damage, wind-up, cooldown) and `config/rounds.ts` → `houndCount` / `houndPacing`. The lookout
+tower's height and position are `TOWER` at the top of `maps/grounds.ts`.
 
 ## Code map
 

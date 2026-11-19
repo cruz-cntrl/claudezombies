@@ -191,6 +191,7 @@ export class Menus {
       slider('Button opacity', 'buttonOpacity', 0.2, 1, 0.05),
       toggle('Left-handed layout', 'leftHanded'),
       toggle('Look pad above the move stick', 'leftLookPad'),
+      toggle('Auto-fire while aiming at a target', 'autoFireAds'),
       h('div', { class: 'h2', style: 'margin-top:12px' }, 'Story'),
       toggle('Story cutscenes', 'cutscenes'),
       h('div', { class: 'row' }, h('label', null, 'Prologues'), btn('Show prologues again', () => { save.seen = save.seen.filter((x) => !x.startsWith('prologue:')); persist(); }, 'btn small')),
@@ -220,7 +221,8 @@ export class Menus {
       <div class="h2">Controls</div>
       <b>Touch:</b> drag the left side to move (push to the edge to sprint), swipe the right side to look. FIRE (drag from it to keep aiming), AIM, RELOAD, SWAP, MELEE, GRENADE (hold to cook, release to throw). Purchases need a short hold on the prompt.<br>
       <b>Look pad:</b> the invisible upper half of the movement side is a second look pad — drag it to aim with your other thumb while you hold FIRE, and tap it to aim down sights.<br>
-      <b>Keyboard + mouse:</b> WASD move, Shift sprint, mouse look (click to lock), LMB fire, RMB aim, R reload, E interact (hold), Q swap, F melee, G grenade, Esc pause.
+      <b>Jump / vault / climb:</b> tap JUMP to hop. Next to low cover (sandbags, gravestones, a wing) it vaults you over. Walk into a ladder to climb it — push forward to go up, back to come down, JUMP to let go. The Tethered can climb ladders too, one at a time; hounds and Brutes can’t.<br>
+      <b>Keyboard + mouse:</b> WASD move, Shift sprint, Space jump / vault, mouse look (click to lock), LMB fire, RMB aim, R reload, E interact (hold), Q swap, F melee, G grenade, Esc pause.
       <div class="h2" style="margin-top:10px">Surviving</div>
       Every Tethered has a glowing chip in its skull. <b>Shoot the chip</b> and it shorts out — <b>one hit kills</b> any Tethered or hound, and pays more. Brutes cage theirs, and bosses only take heavy damage there.<br>
       The dead come through boarded windows: hold the prompt at a window to rebuild boards (+10 each).<br>
@@ -233,7 +235,8 @@ export class Menus {
       <div class="h2" style="margin-top:10px">Secrets</div>
       Every map hides a main quest, a hidden song and lore notes. Listen to the static — and to the bells on the Grounds.
       <div class="h2" style="margin-top:10px">Maps</div>
-      Start on <b>Ravenmoor Grounds</b>. Reach <b>round 5</b> there and the <b>Asylum</b> opens.` });
+      Start on <b>Ravenmoor Grounds</b>. Reach <b>round 5</b> there and the <b>Asylum</b> opens; reach <b>round 5</b> in the Asylum and <b>Halcyon Signal Station</b> opens.<br>
+      <b>Aiming:</b> while aimed in, the gun fires by itself whenever the red dot is on a Tethered (switch off in Settings). Aim speed has its own slider in the pause menu.` });
     return h('div', { class: 'screen dim' }, this.header('How to Play', onBack), body,
       h('div', { style: 'margin-top:8px' }, btn('Replay tutorial next game', () => { save.settings.tutorialDone = false; persist(); }, 'btn small')));
   }
@@ -283,16 +286,87 @@ export class Menus {
     const a = this.app;
     const g = a.game;
     const info = g ? `${MAPS[a.mapId].name} · Round ${g.rounds.round} · ${DIFFICULTY[a.difficulty].name}` : '';
+    const gate = Object.values(MAPS).find((m) => m.unlock?.map === a.mapId && !isUnlocked(m));
+    const goal = gate && gate.unlock ? `Goal: reach round ${gate.unlock.round} to open ${gate.name}` : '';
+    const big = g && g.world.def.outdoor;
     return h('div', { class: 'screen dim', style: 'justify-content:center' },
-      h('div', { class: 'h1' }, 'PAUSED'),
-      h('div', { class: 'txt', style: 'margin-bottom:10px' }, info),
-      h('div', { class: 'menu-col', style: 'width:min(300px,38vw)' },
-        btn('Resume', () => a.resume(), 'btn primary'),
-        btn('Settings', () => a.setScreen(this.settings(() => a.setScreen(this.pause())))),
-        btn('How to Play', () => a.setScreen(this.howTo(() => a.setScreen(this.pause())))),
-        btn('Quit to Menu', () => a.setScreen(this.confirmQuit())),
+      h('div', { style: 'display:flex;gap:18px;align-items:center;min-height:0;flex:1' },
+        h('div', { style: 'display:flex;flex-direction:column;justify-content:center' },
+          h('div', { class: 'h1' }, 'PAUSED'),
+          h('div', { class: 'txt', style: 'margin-bottom:4px' }, info),
+          goal ? h('div', { class: 'txt', style: 'margin-bottom:10px;color:var(--gold)' }, goal) : h('div', { style: 'height:6px' }),
+          h('div', { class: 'menu-col', style: 'width:min(280px,34vw)' },
+            this.quickSlider('Look speed', 'lookSens', 0.2, 3),
+            this.quickSlider('Aim speed (while aiming)', 'adsSens', 0.2, 3),
+            btn('Resume', () => a.resume(), 'btn primary'),
+            btn('Settings', () => a.setScreen(this.settings(() => a.setScreen(this.pause())))),
+            btn('How to Play', () => a.setScreen(this.howTo(() => a.setScreen(this.pause())))),
+            btn('Quit to Menu', () => a.setScreen(this.confirmQuit())),
+          )),
+        big && g ? this.liveMap(g) : null,
       ),
     );
+  }
+
+  /** Compact sensitivity slider for the pause screen (same setting as in Settings). */
+  private quickSlider(label: string, key: 'lookSens' | 'adsSens', min: number, max: number): HTMLElement {
+    const s = save.settings;
+    const val = h('span', { style: 'width:34px;text-align:right;font-size:12px' }, s[key].toFixed(2));
+    const inp = h('input', { type: 'range', min, max, step: 0.05, value: String(s[key]), style: 'flex:1;accent-color:var(--blood);height:26px;touch-action:none' }) as HTMLInputElement;
+    inp.addEventListener('input', () => { s[key] = parseFloat(inp.value); val.textContent = s[key].toFixed(2); persist(); this.app.applySettings(); });
+    return h('div', { class: 'txt', style: 'display:flex;flex-direction:column;gap:0;margin-bottom:2px' },
+      h('div', { style: 'font-size:12px;opacity:.85' }, label),
+      h('div', { style: 'display:flex;align-items:center;gap:6px' }, inp, val));
+  }
+
+  /** Pause-screen map of an open map: unlocked areas, machines, and where you are. */
+  private liveMap(g: NonNullable<App['game']>): HTMLElement {
+    const w = g.world, grid = w.grid, def = w.def;
+    const S = 3;
+    const c = document.createElement('canvas');
+    c.width = grid.w * S; c.height = grid.h * S;
+    const x = c.getContext('2d')!;
+    const zc = ['#5a7a5e', '#6a6a8a', '#5e6e7a', '#7a6a4e', '#6e5a4a', '#5a6e6e'];
+    for (let j = 0; j < grid.h; j++) for (let i = 0; i < grid.w; i++) {
+      const k = grid.kindAt(i, j), zi = grid.zoneAt(i, j);
+      let col = '';
+      if (grid.hidden[j * grid.w + i]) col = '#c8bca0';
+      else if (k === 2) col = '#3a362e';
+      else if (k === 4) col = '#c0392b';
+      else if (k === 5) col = w.doors.get(String.fromCharCode(grid.doorId[j * grid.w + i]))?.open ? '' : '#d8a940';
+      else if (grid.fence[j * grid.w + i]) col = '#2a2824';
+      else if (zi >= 0 && k !== 3) col = w.zoneActive[zi] ? zc[zi % zc.length] : '#1e1e1c';
+      if (!col) { if (zi >= 0) col = w.zoneActive[zi] ? zc[zi % zc.length] : '#1e1e1c'; else continue; }
+      x.fillStyle = col; x.fillRect(i * S, j * S, S, S);
+    }
+    // labels for unlocked areas
+    x.font = `bold ${S * 3.2}px sans-serif`; x.textAlign = 'center'; x.fillStyle = 'rgba(255,255,255,0.85)';
+    def.zones.forEach((zd, zi) => {
+      if (!w.zoneActive[zi]) return;
+      let sx = 0, sz = 0, n = 0;
+      for (let j = 0; j < grid.h; j += 2) for (let i = 0; i < grid.w; i += 2) if (grid.zoneAt(i, j) === zi && grid.kindAt(i, j) === 1) { sx += i; sz += j; n++; }
+      if (n) x.fillText(zd.name.toUpperCase(), (sx / n) * S, (sz / n) * S);
+    });
+    const dot = (i: number, j: number, col: string, r: number) => { x.fillStyle = col; x.beginPath(); x.arc(i * S, j * S, r, 0, 7); x.fill(); };
+    for (const m of grid.markers) {
+      if (m.zone >= 0 && !w.zoneActive[m.zone]) continue;
+      if (m.ch === 'p') dot(m.i + 0.5, m.j + 0.5, '#4ff0e8', S * 1.4);
+      else if (m.ch === 's') dot(m.i + 0.5, m.j + 0.5, '#ffd040', S * 1.6);
+      else if (m.ch === 'r') dot(m.i + 0.5, m.j + 0.5, '#c070ff', S * 1.6);
+      else if (m.ch === 'b') dot(m.i + 0.5, m.j + 0.5, '#e9e1cc', S * 1.1);
+    }
+    // you
+    const p = g.player;
+    x.save();
+    x.translate(p.pos.x * S, p.pos.z * S);
+    x.rotate(-p.yaw);
+    x.fillStyle = '#ff3b2a'; x.strokeStyle = '#000'; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(0, -S * 4); x.lineTo(S * 2.6, S * 2.6); x.lineTo(-S * 2.6, S * 2.6); x.closePath(); x.stroke(); x.fill();
+    x.restore();
+    c.style.cssText = 'height:min(78vh,330px);width:auto;max-width:52vw;border:2px solid rgba(233,225,204,0.25);image-rendering:pixelated;background:#0c0b0a';
+    const legend = h('div', { class: 'txt', style: 'font-size:11px;opacity:.85;margin-top:4px;text-align:center', html:
+      '<span style="color:#ff3b2a">▲</span> you &nbsp; <span style="color:#4ff0e8">●</span> tonic &nbsp; <span style="color:#ffd040">●</span> power &nbsp; <span style="color:#c070ff">●</span> Rewirer &nbsp; <span style="color:#e9e1cc">●</span> wall gun' });
+    return h('div', { style: 'display:flex;flex-direction:column;align-items:center;min-height:0' }, c, legend);
   }
 
   confirmQuit(): HTMLElement {

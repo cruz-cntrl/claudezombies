@@ -39,6 +39,8 @@ export interface CombatHost {
   throwGrenade(o: THREE.Vector3, v: THREE.Vector3, fuse: number): void;
   explodeInHand(): void;
   muzzleWorld(out: THREE.Vector3): THREE.Vector3;
+  /** distance to a target on the exact bullet path, or -1 */
+  targetUnderReticle(o: THREE.Vector3, d: THREE.Vector3, range: number): number;
 }
 
 type State = 'ready' | 'reload' | 'swap' | 'melee' | 'throw' | 'drink' | 'busy';
@@ -81,6 +83,9 @@ export class WeaponSystem {
   drinkColor = 0xffffff;
   private drinkDone: (() => void) | null = null;
   private firePrev = false;
+  /** auto-fire while aiming: the reticle is on a target (checked a few times a second) */
+  autoFiring = false;
+  private autoCheckT = 0;
   private dryClicked = false;
   private lastShot = 0;
   private time = 0;
@@ -287,7 +292,7 @@ export class WeaponSystem {
     }
 
     // --- ADS
-    const wantAds = input.aiming && !p.sprinting && (this.state === 'ready' || (this.state === 'reload' && false)) && !p.downed;
+    const wantAds = input.aiming && !p.sprinting && p.mode !== 'ladder' && p.mode !== 'vault' && (this.state === 'ready' || (this.state === 'reload' && false)) && !p.downed;
     const adsTime = st.adsTime * (p.perks.has('fleetfoot') ? PERK_TUNING.fleetfootAdsMult : 1);
     const prevAds = this.ads;
     this.ads = clamp(this.ads + (wantAds ? 1 : -1) * dt / adsTime, 0, 1);
@@ -330,7 +335,22 @@ export class WeaponSystem {
     if (this.actionT >= 0) { this.actionT += dt / this.actionDur; if (this.actionT >= 1) this.actionT = -1; }
 
     // --- firing
-    const fireDown = input.fire && !p.downed ? true : input.fire;
+    // hands are busy on a ladder or mid-vault
+    const handsBusy = p.mode === 'ladder' || p.mode === 'vault';
+    // touch: aimed in with the dot on a Tethered → fire automatically (every gun; semi-autos at their
+    // normal cadence; launchers only when the target isn't close enough to catch the blast)
+    this.autoCheckT -= dt;
+    if (this.autoCheckT <= 0) {
+      this.autoCheckT = 0.05;
+      this.autoFiring = false;
+      if (save.settings.autoFireAds && input.usingTouch && input.aiming && this.ads > 0.75 && !handsBusy && !p.downed && this.state === 'ready') {
+        p.forward(this.tmpD);
+        const range = Math.max(25, st.falloffEnd * 1.4);
+        const t = host.targetUnderReticle(camPos, this.tmpD, range);
+        this.autoFiring = t >= 0 && (st.projectile !== 'grenade' || t > 7);
+      }
+    }
+    const fireDown = handsBusy ? false : (input.fire || this.autoFiring) && !p.downed ? true : input.fire;
     const pressed = fireDown && !this.firePrev;
     if (!fireDown) this.dryClicked = false;
     if (fireDown && (this.state === 'ready') && this.cooldown <= 0 && !p.sprinting) {
@@ -338,7 +358,7 @@ export class WeaponSystem {
         if (w.reserve > 0) this.startReload();
         else if (!this.dryClicked) { audio.play('mech_dryFire', { bus: 'sfx' }); this.dryClicked = true; }
       } else {
-        const semiHoldRepeat = input.usingTouch && this.time - this.lastShot > (60 / st.rpm) * 1.45;
+        const semiHoldRepeat = (input.usingTouch || this.autoFiring) && this.time - this.lastShot > (60 / st.rpm) * 1.45;
         if (st.auto || pressed || semiHoldRepeat) this.shoot(w, host, camPos);
       }
     }
@@ -360,7 +380,7 @@ export class WeaponSystem {
       ads: this.ads, bobPhase: p.bobPhase, bobAmount: p.bobAmount, sprint: p.sprinting ? 1 : 0,
       lookDX: ldx, lookDY: ldy,
       reload: this.state === 'reload' ? { style: w.def.reloadStyle, t: this.reloadT } : null,
-      swap: this.state === 'swap' ? this.swapT : 0,
+      swap: this.state === 'swap' ? this.swapT : p.mode === 'ladder' ? 0.85 : p.mode === 'vault' ? 0.4 : 0,
       melee: this.meleeT, action: this.actionT, throwT: this.throwT, cookT: this.cookT,
       drink: this.drinkT, drinkColor: this.drinkColor, downed: p.downed, time: this.time,
     });

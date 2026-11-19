@@ -43,6 +43,8 @@ export class EasterEggs {
   private bells = new Set<string>();
   private vigil: { t: number; age: number; x: number; z: number; sprite: THREE.Sprite; arcT: number } | null = null;
   private blackout = false;
+  private flareMarker: THREE.Mesh | null = null;
+  private lastPower = false;
   readonly mapId: string;
 
   constructor(private g: Game) {
@@ -104,11 +106,11 @@ export class EasterEggs {
       grp.add(gun, glow);
     } else if (kind.startsWith('bell')) {
       const b = new THREE.Mesh(lathe([[0.11, 0], [0.09, 0.03], [0.06, 0.13], [0.0, 0.15]], 12), new THREE.MeshStandardMaterial({ color: 0x9a7a3a, metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide }));
-      b.position.set(-0.05, 1.6, 0);
+      b.position.set(0.44, 1.55, 0);
       const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1.0, 4), mat(0x5a4a30));
-      rope.position.set(-0.05, 1.1, 0);
+      rope.position.set(0.44, 1.05, 0);
       glow = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.7, 0.6) }));
-      glow.position.set(-0.05, 1.58, 0);
+      glow.position.set(0.44, 1.53, 0);
       grp.add(b, rope, glow);
     } else if (kind === 'beaconBase') {
       const crateM = new THREE.Mesh(compose([[rbox(0.7, 0.45, 0.5, 0.02), M(0, 0.22, 0)], [box(0.72, 0.06, 0.52), M(0, 0.47, 0), 0x8a1a12]]), mat(0x4a3e2c));
@@ -145,7 +147,7 @@ export class EasterEggs {
       }, 0);
     } else if (id === 'freqnote') {
       add(() => ({ text: 'Read the engineer’s scrap', sub: 'Note' }), () => {
-        this.modal(this.paper('Engineer’s scrap', `If the theater console ever goes dark, the override band is ${this.freq}.\n\nTune it there and you’ll hear him.\n\nGod help you if you do.`));
+        this.modal(this.paper('Engineer’s scrap', `The Director talks to the Chorus on his own band: ${this.freq}.\n\nThe set in the theater can still reach it — once the valves are back in and the power is on.\n\nTune it there and you’ll be talking to HIM. God help you if you do.`));
       }, 0);
     } else if (id.startsWith('valve')) {
       add(() => (it.taken ? null : { text: 'Pick up the radio valve', sub: 'Strange glass tube' }), () => {
@@ -184,7 +186,7 @@ export class EasterEggs {
       add(() => (this.flareGun ? null : { text: 'Take the pilot’s flare pistol', sub: 'One flare left in it' }), () => {
         this.flareGun = true; it.taken = true; mesh.visible = false;
         audio.play('ui_valve', { bus: 'ui' });
-        bus.emit('message', { text: 'FLARE PISTOL', sub: 'One flare. Bright enough to blind something.', duration: 3.5, color: '#e8823a' });
+        bus.emit('message', { text: 'FLARE PISTOL — ONE FLARE', sub: 'Ring the 3 coffin bells in the graveyard, then fire it at the tower from the asylum steps', duration: 6, color: '#e8823a' });
         this.progress();
       });
     } else if (id.startsWith('bell')) {
@@ -205,16 +207,23 @@ export class EasterEggs {
         this.progress();
       }, 0.5);
     } else if (id === 'beaconBase') {
-      add(() => {
+      // a red light pillar marks the firing spot once everything is ready
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 14, 12, 1, true),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.35, 0.2), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      pillar.position.set(at.x, 7, at.z);
+      pillar.visible = false;
+      this.group.add(pillar);
+      this.flareMarker = pillar;
+      g.interact.add({ x: at.x, z: at.z, r: 3.6, hold: 0.25, priority: 0.6, label: () => {
         if (this.blackout || this.vigil) return null;
         if (!this.flareGun) return { text: 'Beneath the signal tower', sub: 'Something bright might blind it…' };
         if (this.bells.size < 3) return { text: 'Beneath the signal tower', sub: `It isn’t listening yet (bells ${this.bells.size}/3)` };
         if (!g.powerOn) return { text: 'Beneath the signal tower', sub: 'The estate needs power first' };
-        return { text: 'Fire the flare at the tower light', sub: 'Then hold your ground' };
-      }, () => {
+        return { text: 'FIRE THE FLARE', sub: 'Hold — then defend the tower base' };
+      }, can: () => !this.blackout && !this.vigil && this.flareGun, use: () => {
         if (!this.flareGun || this.bells.size < 3 || !g.powerOn) { audio.play('ui_denied', { bus: 'ui' }); return; }
         this.startVigil(at.x, at.z);
-      }, 0.6);
+      } });
     } else if (id === 'radiogag') {
       add(() => (this.gagUsed ? { text: 'Fiddle with the broken radio', sub: 'It seems pleased with itself' } : { text: 'Fiddle with the broken radio', sub: '?' }), () => {
         audio.play('ui_radioLaugh', { pos: { x: at.x, y: 1, z: at.z }, vol: 1, priority: 8 });
@@ -328,7 +337,7 @@ export class EasterEggs {
               this.closeModal();
               this.tuned = true;
               audio.play('ui_eeStep', { bus: 'ui' });
-              bus.emit('message', { text: '…RAVENMOOR… COME HOME…', sub: 'A voice crawls out of the static', duration: 4, color: '#e2392e' });
+              bus.emit('message', { text: '…YOU ARE ON MY BAND…', sub: 'Hale’s voice crawls out of the static — and seven chips come looking for you', duration: 4, color: '#e2392e' });
               setTimeout(() => this.summonBoss(), 3500);
             } else {
               audio.play('ui_denied', { bus: 'ui' });
@@ -410,7 +419,7 @@ export class EasterEggs {
     const scr = h('div', { class: 'screen solid', style: 'align-items:center;justify-content:center;text-align:center' },
       h('div', { class: 'title-logo', style: 'font-size:clamp(30px,9vh,56px)' }, 'SIGNAL CUT'),
       h('div', { class: 'txt', style: 'max-width:520px;margin:10px 0 14px;white-space:pre-wrap' },
-        'The Mother Transmitter falls silent. Across the valley, a hundred thousand copper chips go dark at once.\n\nThe Tethered do not stop. They are simply… quieter now.\n\nPROJECT TETHER — TERMINATED\nHalcyon Signal Corps: 0 survivors · 1 witness'),
+        'The Mother Transmitter falls silent. Hale’s voice goes out with it — and so does the Chorus.\n\nAcross the valley, every copper chip goes dark at once. The Tethered do not stop. Without a voice to follow, they are only… quiet.\n\nPROJECT TETHER — TERMINATED\nHalcyon Signal Corps: 0 survivors · 1 witness'),
       h('div', { class: 'txt', style: 'opacity:.7;font-size:12px' }, 'TETHERED · generated entirely in code · thank you for playing'),
       h('button', { class: 'btn primary', style: 'margin-top:14px', onclick: () => this.closeModal() }, 'Keep fighting (endless rounds)'));
     return scr;
@@ -471,6 +480,7 @@ export class EasterEggs {
     g.zombies.killAll((z) => !z.boss);
     g.rounds.surge = 0;
     this.victory();
+    setTimeout(() => bus.emit('message', { text: 'NOBODY IS STEERING', sub: 'Blinded, Hale loses the Chorus for a moment. It will find him again — inside.', duration: 5, color: '#4fa8ff' }), 6500);
   }
 
   // ---------------------------------------------------------------- update
@@ -478,6 +488,12 @@ export class EasterEggs {
     const g = this.g, p = g.player.pos;
     const t = g.time;
     if (this.vigil) this.updateVigil(dt);
+    if (this.flareMarker) {
+      const ready = this.flareGun && this.bells.size >= 3 && g.powerOn && !this.vigil && !this.blackout;
+      this.flareMarker.visible = ready;
+      if (ready) (this.flareMarker.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(t * 3) * 0.1;
+      if (this.mapId === 'grounds' && g.powerOn !== this.lastPower) { this.lastPower = g.powerOn; this.progress(); }
+    }
     for (const it of this.items.values()) if (it.glow && !it.taken) {
       const k = 0.6 + Math.sin(t * 3 + it.m.i) * 0.4;
       (it.glow.material as THREE.MeshBasicMaterial).color.setScalar(k * 2.2);
@@ -519,10 +535,13 @@ export class EasterEggs {
       if (this.valves > 0 && !this.valvesInstalled) text = `Radio valves ${this.valves}/3`;
       else if (this.valvesInstalled && !this.tuned) text = 'The console waits for a frequency';
     } else if (this.mapId === 'grounds') {
-      if (this.vigil) text = '';
-      else if (this.bells.size === 3) text = this.flareGun ? 'The tower is listening — stand beneath it' : 'The tower is listening';
+      const g = this.g;
+      if (this.vigil || this.blackout) text = '';
+      else if (this.flareGun && this.bells.size < 3) text = `Ring the coffin bells in the graveyard (${this.bells.size}/3)`;
+      else if (this.flareGun && !g.powerOn) text = 'Turn on the power — the switch is on the groundskeeper’s shed';
+      else if (this.flareGun) text = 'Fire the flare from the red marker on the asylum steps';
+      else if (this.bells.size === 3) text = 'The tower is listening… the pilot had something bright';
       else if (this.bells.size > 0) text = `Coffin bells ${this.bells.size}/3`;
-      else if (this.flareGun) text = 'Flare pistol: one shot';
     } else if (this.mapId === 'station') {
       const locked = this.relays.filter((r) => r.state === 'locked').length;
       if (locked > 0 && locked < 3) text = `Relays ${locked}/3 locked`;

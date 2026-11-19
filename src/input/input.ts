@@ -1,6 +1,6 @@
 import { save } from '../core/save';
 
-export type Action = 'reload' | 'swap' | 'melee' | 'pause' | 'interactPress' | 'grenadeRelease' | 'aimToggle';
+export type Action = 'reload' | 'swap' | 'melee' | 'pause' | 'interactPress' | 'grenadeRelease' | 'aimToggle' | 'jump';
 
 /**
  * Unified input state consumed by the simulation. Touch and keyboard/mouse both write here.
@@ -42,7 +42,8 @@ export class Input {
     if (!this.enabled) return;
     const s = save.settings;
     let k = base * s.lookSens * this.slowdown;
-    if (this.aiming) k *= s.adsSens / Math.max(1, this.zoom * 0.85);
+    // aimed: scaled by the ADS slider, only gently reduced by zoom so turning while aimed stays quick
+    if (this.aiming) k *= s.adsSens / Math.max(1, 1 + (this.zoom - 1) * 0.5);
     this.lookDX += dxPx * k;
     this.lookDY += dyPx * k * (s.invertY ? -1 : 1);
   }
@@ -123,7 +124,7 @@ export class KeyboardMouse {
       case 'KeyF': case 'KeyV': if (down) this.input.press('melee'); break;
       case 'KeyG': this.input.grenadeHeld = down; if (!down) this.input.press('grenadeRelease'); break;
       case 'KeyE': this.input.interactHeld = down; if (down) this.input.press('interactPress'); break;
-      case 'Space': if (down) this.input.press('interactPress'); this.input.interactHeld = down; break;
+      case 'Space': if (down) this.input.press('jump'); break;
     }
     this.updateMove();
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();

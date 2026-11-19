@@ -29,12 +29,29 @@ Round-based wave survival, first person, iPhone 16 Safari landscape, Netlify-hos
 - Hit reactions: per-part springs; fatal head shots snap the head back, leg kills buckle forward, arm kills spin, explosions can take an arm.
 - Enemies: Tethered walker/runner/sprinter, Hounds (special round), Brute (cage over chip), 2 bosses.
 
+## Story (one arc across the three maps)
+- **The chips.** Project TETHER puts a copper chip against the skull. The chip listens to the Halcyon carrier and
+  sets the brain to the band it hears: 5.40 settle, 7.15 obey, 9.85 fury, 11.20 wake. Operators "tune" soldiers.
+- **The Chorus.** Every chip also sends its wearer's brain rhythm back down the carrier. Forty minds echoing into each
+  other became one mind living in the signal — a hivemind the staff call the Chorus. On 3 March 1944 at 03:14 it
+  retuned the Mother Transmitter to its own note; every Tethered now hums it and moves for it.
+- **Director Edmund Hale** (Ravenmoor) believes the Chorus is the army the Corps wanted — it only lacks a will, and
+  the loudest mind on the band steers it. He took seven chips and built the blue beacon on the clock tower to carry
+  his voice into the Chorus. He is the villain of all three maps.
+- **Grounds — "Lights Out":** ring the coffin bells (the Chorus turns to the tower), then blind Hale's beacon with
+  the pilot's flare: for a moment nobody is steering and every Tethered on the estate drops.
+- **Asylum — "Dead Air":** tune Hale's own band on the theater radio; he answers in person as **The Warden**.
+- **Station — "Signal Cut":** Hale's voice survived his body and rode the signal home. Wired into the **Mother
+  Transmitter**, he is fighting the Chorus for control. Cutting the signal silences them both.
+- Unlocks: Grounds round 5 → Asylum; Asylum round 5 → Station.
+
 ## Maps
 0. **Ravenmoor Grounds** (start here; dusk, open air, gentle hills) — front drive (start) → groundskeeper's yard
    (power) / chapel → graveyard, courtyard → crash field with the downed courier plane (walk-in hull). The sealed
    asylum and its signal tower (blue beacon) stand in the middle. Reaching **round 5** here unlocks the Asylum.
    EE "Lights Out": flare pistol from the cockpit → ring 3 coffin bells (each wakes the graves) → power on → fire
    the flare at the tower → hold the ground under it for 45 s → the beacon dies and every Tethered drops.
+   A lookout tower in the Front Drive can be climbed by ladder (the Tethered follow one at a time).
 1. **Ravenmoor Asylum** — reception → ward → operating theater → flooded boiler room (power) → courtyard.
    EE "Dead Air": 3 radio valves → console → dial frequency from ward note → boss **The Warden**.
 2. **Halcyon Signal Station** — loading dock → assembly line → generator hall (power) → control room → transmitter roof.
